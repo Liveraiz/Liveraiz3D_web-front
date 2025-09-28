@@ -55,7 +55,7 @@
       cursor: pointer;
     ">✂️</button>
 
-    <button id="drawBtn" style="
+      <button id="drawBtn" style="
       padding: 6px 12px;
       font-size: 14px;
       border-radius: 4px;
@@ -97,7 +97,7 @@
       <div id="meshList"></div>
       <div id="segmentEditControllers">
         <div>Diameter</div>
-        
+
         <input id="brushSlider" type="range" min="0" max="1" step="0.01"></input>
       </div>
     </div>
@@ -105,12 +105,12 @@
     <div id="viewerArea">
       <div id="viewerContentArea" style="flex:1; display:flex; flex-direction:column;">
         <!-- Top Mesh Area-->
-        
+
         <div class="viewport-top">
           <div id="leftTopContainer">
             <canvas id="leftTop"></canvas>
           </div>
-          
+
           <div id="bottomHalf" style="position: relative;">
             <div id="labelContainer" style="position:absolute; top:0; left:0; pointer-events:none; z-index:20;"></div>
             <canvas id="threeCanvas"></canvas>
@@ -181,7 +181,6 @@
     #brushSlider {
       width: 100%;
     }
-
   </style>
   <script type="importmap">
 {
@@ -228,9 +227,20 @@
 
     import {
       adjustMeshCanvasSize,
-      renderVolumeMeshAndSlices,
-      makeLabel
+      makeLabel,
+      fitCameraToMeshes,
+      animate
     } from './viewer/meshViewer.js'
+
+    import {
+      MeshController
+    } from './meshControlTable.js';
+
+    import {
+      showMultiVolumeView,
+      createTopLeftFromAnotherView,
+      showTopVolumeOnly
+    } from './viewer/niiViewer.js'
 
     const originalWarn = console.warn;
 
@@ -240,16 +250,15 @@
       }
       originalWarn(...args); // 다른 경고는 그대로 출력
     };
-    // import * as niivue from "https://unpkg.com/@niivue/niivue@latest/dist/index.js";
-    // import * as niivue from "https://unpkg.com/@niivue/niivue@0.58.5/dist/index.js";
+
     let threeMeshes = [];
     let meshMap = {};
     let hiddenFaces = new Map();
-    let undoStack = [];
     let selectedMesh = null;
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let hoveredMesh = null;
+    let meshController = null;
 
     const canvas = document.getElementById('threeCanvas');
     let scene, camera, renderer;
@@ -258,23 +267,6 @@
     let nvMulti = null;     // 멀티플레인 뷰어
     let nvRender = null;    // 렌더 뷰어
     let niiUrl = null;
-
-    const label_name_mapping = {
-      1: "Liver",
-      2: "Rt.lobe",
-      3: "RAS",
-      4: "RPS",
-      5: "Lt.lobe",
-      6: "LLS",
-      7: "LMS",
-      8: "Spigelian",
-      9: "PV",
-      10: "HV",
-      11: "Cancer",
-      12: "BD"
-    }
-
-    var boundingBoxHelper = undefined;
 
     const labelColorMap1 = {
       1: [238, 112, 70, 255],   // Liver - 붉은 주황
@@ -295,6 +287,56 @@
 
     initThreeJS()
     loadTestVolumes();
+
+    export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
+      // ✅ 메시 생성 및 threeMeshes 전역 설정
+      const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
+
+      initMeshMap(meshes);
+      addMeshsToScene(meshes);
+
+      // 카메라 맞춤
+      if (meshes.length > 0) {
+        fitCameraToMeshes(meshes, camera, controls, renderer, scene);
+      }
+
+      animate(controls, renderer, scene, camera);
+
+      const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
+      nvMulti = bottomView;
+      const topLeftView = await createTopLeftFromAnotherView(bottomView);
+
+      topLeftView.onLocationChange = (location) => {
+        console.log("Current pointer location:", location)
+      }
+
+      const nvRender = await showTopVolumeOnly(bottomView);
+
+      buildVolumeTable(meshes, bottomView.volumes[1], scene);
+
+      topLeftView.setRadiologicalConvention(true);
+      bottomView.setRadiologicalConvention(true);
+
+      bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
+      topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
+
+      lassoEditor.setRenderInstance(nvRender);
+      lassoEditor.setMultiInstance(bottomView);
+      lassoEditor.setTopLeftView(topLeftView);
+
+      if (!bottomView || bottomView.volumes.length < 2) {
+        console.warn("⚠️ Niivue에 볼륨이 로드되지 않았습니다.");
+      } else {
+        console.log("✅ 볼륨 로드 완료:", bottomView.volumes.map(v => v.name));
+      }
+
+      // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
+      // showVolumeBoundingBox(nvRender.volumes[0])
+
+      // logVolumeAndMeshStats(nvRender, camera, controls);
+
+      return meshes;
+    }
 
     function initThreeJS() {
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
@@ -352,8 +394,6 @@
       const axesHelper = new THREE.AxesHelper(500);
       axisGroup.add(axesHelper);
 
-      
-
       scene.add(makeLabel('X', 'red', new THREE.Vector3(500, 0, 0)));   // +X (Right)
       scene.add(makeLabel('Y', 'blue', new THREE.Vector3(0, 500, 0))); // +y (Anterior)
       scene.add(makeLabel('Z', 'green', new THREE.Vector3(0, 0, 500))); // +Z (Superior)
@@ -377,7 +417,10 @@
           'http://127.0.0.1:5051/infer-dicom-bundle',
           (msg) => status.textContent = msg
         );
-        meshes = await renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls);
+        meshes = await renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls, lassoEditor);
+
+        meshController = new MeshController(meshes, scene, lassoEditor, camera);
+        buildMeshControllers(meshes, scene);
       } catch (err) {
         console.error(err);
         status.textContent = `❌ 오류: ${err.message}`;
@@ -394,6 +437,8 @@
       niiUrl = URL.createObjectURL(niiBlob);
 
       meshes = await renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls);
+      meshController = new MeshController(meshes, scene, lassoEditor);
+      meshController.buildMeshControllers();
     }
 
     function initMeshMap(meshes) {
@@ -405,13 +450,11 @@
 
     window.initMeshMap = initMeshMap;
 
-
-    function showVolumeBoundingBox(volume)
-    {
+    function showVolumeBoundingBox(volume) {
       const origin = lassoEditor.voxelToWorldCoordinates(0, 0, 0, volume);
       const maxDims = volume.hdr.dims.slice(1);
       const boundingMax = lassoEditor.voxelToWorldCoordinates(
-        maxDims[0], maxDims[1], maxDims[2], 
+        maxDims[0], maxDims[1], maxDims[2],
         volume);
 
       console.log("📍 Origin in world coordinates:", origin, boundingMax);
@@ -425,176 +468,6 @@
     }
 
     let cameraAlreadySynced = false; // 최초 동기화 여부 전역 상태
-
-    function setCameraSyncronizer(nvRender) {
-      let drawCount = 0;
-      const drawInterval = setInterval(() => {
-        nvRender.drawScene();
-        drawCount++;
-
-        const cam = nvRender.scene?.camera;
-
-        if ((cam?.eye && cam?.lookAt) || drawCount > 30) {
-          clearInterval(drawInterval);
-
-          if (!cameraAlreadySynced) {
-            syncCameraZoomFromThreeToNiivue(nvRender, camera, controls);
-            cameraAlreadySynced = true;
-          }
-
-          controls.addEventListener("change", () => {
-            syncCameraZoomFromThreeToNiivue(nvRender, camera, controls);
-          });
-
-        }
-      }, 200);
-    }
-
-    function syncCameraZoomFromThreeToNiivue(nvInstance, threeCamera, controls) {
-      const eye = threeCamera.position.clone();
-      const lookAt = controls.target.clone();
-      const dir = eye.clone().sub(lookAt).normalize();
-
-      const azimuth = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-      const elevation = Math.asin(dir.y) * (180 / Math.PI);
-      const distance = eye.distanceTo(lookAt); // Three.js 카메라 거리
-
-      // ✅ Niivue 카메라 설정
-      nvInstance.scene.renderAzimuth = (360 - azimuth + 360) % 360;
-      nvInstance.scene.renderElevation = elevation;
-      nvInstance.scene.cameraDistance = distance;
-
-      // ✅ 볼륨 줌(크기) 보정 (거리 기준으로 역비례, 조정 가능)
-      const referenceDistance = 600; // 기준 거리 (조정 가능)
-      const multiplier = referenceDistance / distance;
-      nvInstance.scene.volScaleMultiplier = multiplier;
-
-      // ✅ camera.eye, lookAt 수동 설정
-      nvInstance.scene.camera = {
-        eye: [eye.x, eye.y, eye.z],
-        lookAt: [lookAt.x, lookAt.y, lookAt.z],
-      };
-
-      // ✅ 뷰 갱신
-      nvInstance.drawScene();
-    }
-
-    function computeVolScaleMultiplier(nvInstance, meshBoundingBox) {
-      const vol = nvInstance.volumes[0];
-      const volDims = vol.dims;
-      const pixDims = vol.pixDims;
-
-      const volSize = {
-        x: volDims[0] * pixDims[0],
-        y: volDims[1] * pixDims[1],
-        z: volDims[2] * pixDims[2],
-      };
-
-      const volumeMax = Math.max(volSize.x, volSize.y, volSize.z);
-
-      const meshSize = new THREE.Vector3();
-      meshBoundingBox.getSize(meshSize);
-      const meshMax = Math.max(meshSize.x, meshSize.y, meshSize.z);
-
-      return meshMax / volumeMax; // Niivue 쪽을 동일하게 맞춤
-    }
-
-    function logVolumeAndMeshStats(nvInstance, threeCamera, controls) {
-      // threeMeshes는 전역에 있는 것으로 가정
-      if (!threeMeshes || threeMeshes.length === 0) {
-        console.warn("⚠️ 전역 threeMeshes가 비어있음");
-        return;
-      }
-
-      // --- Niivue Volume Bounding Box (수동 계산) ---
-      try {
-        console.log("Number of Volumes", nvInstance?.volumes?.length);
-        const vol = nvInstance?.volumes?.[0];
-        if (vol?.hdr?.dims && vol?.hdr?.pixDims) {
-          const dims = vol.hdr.dims;      // [dim0, x, y, z]
-          const pixDims = vol.hdr.pixDims; // [_, dx, dy, dz]
-
-          console.log("unit mm per voxel", pixDims);
-
-          const sizeNii = {
-            x: dims[1] * pixDims[1],
-            y: dims[2] * pixDims[2],
-            z: dims[3] * pixDims[3],
-          };
-          console.log("📦 Niivue Volume Size (manual)");
-          // Niivue 기준 중심점
-          console.log("🧭 Niivue volume.mmCenter:", vol.mmCenter);
-
-          console.log("  ↪️ dims:", dims.slice(1));
-          console.log("  ↪️ pixDims:", pixDims.slice(1));
-          console.log("  ↪️ size (mm):", sizeNii);
-        } else {
-          console.warn("⚠️ Niivue 볼륨 정보 없음 또는 불완전");
-        }
-      } catch (e) {
-        console.warn("⚠️ Niivue BoundingBox 계산 오류:", e.message);
-      }
-
-      // --- Three.js Mesh Bounding Box ---
-      try {
-        const fullBox = new THREE.Box3();
-        threeMeshes.forEach(obj => {
-          if (obj instanceof THREE.Object3D) {
-            fullBox.expandByObject(obj);
-          }
-        });
-        const sizeMesh = new THREE.Vector3();
-        fullBox.getSize(sizeMesh);
-      } catch (e) {
-        console.warn("⚠️ Three.js BoundingBox 오류:", e.message);
-      }
-
-      // --- Niivue 카메라 거리 / 스케일 ---
-      if (nvInstance?.scene) {
-        console.log("📷 Niivue 카메라 정보");
-        console.log("  ↪️ cameraDistance:", nvInstance.scene.cameraDistance);
-        console.log("  ↪️ volScaleMultiplier:", nvInstance.scene.volScaleMultiplier?.toFixed(3));
-      }
-
-      // --- Three.js 카메라 위치 ---
-      if (threeCamera) {
-        const eye = threeCamera.position;
-        console.log("📷 Three.js 카메라 eye:", eye.toArray());
-      }
-
-      // --- Three.js 컨트롤 타겟 위치 ---
-      if (controls?.target) {
-        console.log("📷 controls.target:", controls.target.toArray());
-      } else {
-        console.warn("⚠️ controls.target 정보 없음");
-      }
-    }
-
-    function applyNiivueCustomColors(nvInstance) {
-      if (!nvInstance || !nvInstance.volumes[1]) {
-        console.warn("⚠️ Niivue 또는 Seg 볼륨이 준비되지 않음");
-        return;
-      }
-
-      const lut = new Uint8Array(256 * 4);
-      lut.fill(0);
-
-      Object.entries(labelColorMap).forEach(([labelIndex, rgb]) => {
-        const idx = parseInt(labelIndex);
-        if (!isNaN(idx)) {
-          lut[idx * 4 + 0] = rgb[0];
-          lut[idx * 4 + 1] = rgb[1];
-          lut[idx * 4 + 2] = rgb[2];
-          lut[idx * 4 + 3] = 255;
-        }
-      });
-
-      nvInstance.volumes[1].colormapLabel = "custom";
-      nvInstance.volumes[1].lut = lut;
-
-      nvInstance.drawScene(); // ✅ updateGLVolume() 제거
-      console.log("✅ Niivue LUT 적용 완료");
-    }
 
     function computeLabelVolumesDict(vol) {
       const data = vol.img;
@@ -617,234 +490,25 @@
     }
 
     window.computeLabelVolumesDict = computeLabelVolumesDict;
-
-    async function waitForNiivueReady(nvInstance, timeout = 500) {
-      return new Promise((resolve, reject) => {
-        const start = Date.now();
-        const check = () => {
-          if (nvInstance.volumes[1]?.gl) {
-            resolve();
-          } else if (Date.now() - start > timeout) {
-            reject(new Error("Niivue 초기화 대기 시간 초과"));
-          } else {
-            requestAnimationFrame(check);
-          }
-        };
-        check();
-      });
-    }
-
-    function buildMeshControllers(meshes) {
-      const meshListDiv = document.getElementById('meshList');
-      meshListDiv.innerHTML = '';
-
-      console.log(meshListDiv.children);
-
-      meshes.forEach((mesh, idx) => {
-        if (!mesh.material) return;
-
-        // 씬에 추가
-        if (!scene.children.includes(mesh)) {
-          scene.add(mesh);
-        }
-
-        // UI 행 추가
-        const row = createMeshRowWithControls(mesh, idx);
-        meshListDiv.appendChild(row);
-      });
-    }
-
     window.buildVolumeTable = buildVolumeTable;
 
     function addMeshsToScene(meshes) {
       meshes.forEach(mesh => {
         if (!mesh.material) return;
-        
+
         scene.add(mesh);
       });
     }
 
-    function bindMeshControllers(meshes) {
-      const meshListDiv = document.getElementById('meshList');
-      Array.from(meshListDiv.children).forEach(row => {
-        const meshLabel = row.dataset.label;
-        const mesh = meshes.find(m => m.userData.label.toString() === meshLabel);
-        if (!mesh) {
-          console.error("매시가 없습니다.", meshLabel, row.dataset, meshes);
-          return;
-        }
-
-        // 가시성 토글
-        // const visibilityCheckbox = row.querySelector('input[type="checkbox"]');
-        // visibilityCheckbox.checked = mesh.visible;
-        // visibilityCheckbox.onchange = () => {
-        //   mesh.visible = visibilityCheckbox.checked;
-        //   renderer.render(scene, camera);
-        // };
-
-        // 불투명도 슬라이더
-        const opacitySlider = row.querySelector('input[type="range"]');
-        mesh.material.opacity = opacitySlider.value;
-        mesh.material.transparent = mesh.material.opacity < 1.0;
-        
-        // opacitySlider.oninput = () => {
-        //   mesh.material.opacity = parseFloat(opacitySlider.value);
-        //   mesh.material.transparent = mesh.material.opacity < 1.0;
-        //   renderer.render(scene, camera);
-        // };
-      });
-    }
-
-    window.buildMeshControllers = buildMeshControllers;
     window.addMeshsToScene = addMeshsToScene;
-    window.bindMeshControllers = bindMeshControllers;
-
-    function createMeshRowWithControls(mesh, idx) {
-      const labelValue = mesh.label || mesh.userData?.label;
-      const labelText = label_name_mapping[labelValue] || `Label ${labelValue}`;
-      const row = document.createElement('div');
-
-      row.classList.add('mesh-row');
-
-      // ✅ mesh.uuid를 dataset에 저장
-      row.dataset.meshId = mesh.uuid;
-      row.dataset.label = labelValue;
-
-      Object.assign(row.style, {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: '#1A1A1A',
-        borderRadius: '8px',
-        padding: '8px 12px',
-        marginBottom: '8px',
-        cursor: 'pointer',
-      });
-
-      row.onclick = () => {
-        const mesh = getMeshByLabel(row.dataset.label);
-        selectMesh(mesh); // ✅ 기존 함수 사용
-        selectedMesh = mesh;
-        undoStack = [];
-
-        highlightSelectedMesh(mesh);
-      };
-
-      const left = createLeftLabelSection(mesh, labelText);
-      row.appendChild(left);
-      
-      const controlPanel = createVisibilityAndOpacityControl(row.dataset);
-      row.appendChild(controlPanel);
-      return row;
-    }
+    window.bindMeshControllers = () => meshController.bindMeshControllers;
 
     function getMeshByLabel(label) {
       return meshMap[label];
     }
-
-    function createVisibilityAndOpacityControl(dataset) {
-      const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.alignItems = 'center';
-      container.style.justifyContent = 'space-between';
-      container.style.gap = '12px';
-      container.style.flex = '1';
-
-      // 왼쪽: 슬라이더 + 숫자
-      const sliderGroup = document.createElement('div');
-      sliderGroup.style.display = 'flex';
-      sliderGroup.style.alignItems = 'center';
-      sliderGroup.style.gap = '8px';
-
-      console.log("🎛️ dataset:", dataset);
-      const mesh = getMeshByLabel(dataset.label);
-      const initialOpacity = mesh.material.opacity ?? 1;
-      mesh.material.opacity = initialOpacity;
-
-      const slider = document.createElement('input');
-      Object.assign(slider, {
-        type: 'range',
-        min: 0,
-        max: 1,
-        step: 0.01,
-        value: initialOpacity,
-        title: '투명도 조절',
-      });
-      slider.style.width = '60px';
-
-      const valueText = document.createElement('span');
-      valueText.innerText = initialOpacity.toFixed(2);
-      valueText.style.fontSize = '12px';
-      valueText.style.color = 'white';
-      valueText.style.width = '32px';
-      valueText.style.textAlign = 'right';
-
-      slider.oninput = (e) => {
-        const targetMesh = getMeshByLabel(dataset.label);
-        const val = parseFloat(e.target.value);
-        targetMesh.material.opacity = val;
-        valueText.innerText = val.toFixed(2);
-
-        if (val < 1.0) {
-          Object.assign(targetMesh.material, {
-            transparent: true,
-            depthWrite: false,
-            side: THREE.DoubleSide,
-            blending: THREE.NormalBlending
-          });
-        } else {
-          Object.assign(targetMesh.material, {
-            transparent: false,
-            depthWrite: true,
-            side: THREE.DoubleSide,
-            blending: THREE.NoBlending
-          });
-        }
-
-        targetMesh.material.needsUpdate = true;
-      };
-
-      sliderGroup.appendChild(slider);
-      sliderGroup.appendChild(valueText);
-
-      // 오른쪽: eye 아이콘
-      const eye = document.createElement('span');
-      eye.style.cursor = 'pointer';
-      eye.style.fontSize = '12px';
-      eye.style.color = 'white';
-
-      const updateIcon = () => {
-        eye.innerHTML = mesh.visible
-          ? '<i class="fa-regular fa-eye"></i>'
-          : '<i class="fa-regular fa-eye-slash"></i>';
-      };
-
-      eye.onclick = (e) => {
-        const targetMesh = getMeshByLabel(dataset.label);
-        e.stopPropagation();
-        targetMesh.visible = !targetMesh.visible;
-        updateIcon();
-        renderer.render(scene, camera);
-      };
-
-      updateIcon();
-
-      container.appendChild(sliderGroup); // 왼쪽
-      container.appendChild(eye);         // 오른쪽
-
-      return container;
-    }
+    window.getMeshByLabel = getMeshByLabel;
 
     const lassoEditor = new LassoEditor(canvas, camera, renderer, scene, controls);
-
-    // 🎨 전역 함수로 색상 업데이트 노출 
-    // window.updateVolumeColors = () => {
-    //   if (lassoEditor) {
-    //     lassoEditor.updateVolumeColorsFromBackend();
-    //   }
-    // };
-
-    // 전역 변수로 editor 노출
     window.lassoEditor = lassoEditor;
 
     document.getElementById('undoBtn').addEventListener('click', () => {
@@ -861,16 +525,6 @@
     // ✅ 편집 모드 전환 버튼
     editModeBtn.addEventListener('click', () => {
       lassoEditor.volumeEditFullMode = !lassoEditor.volumeEditFullMode;
-
-      // if (lassoEditor.volumeEditFullMode) {
-      //   editModeBtn.textContent = '🌍 전체';
-      //   editModeBtn.style.background = '#222';
-      //   console.log('🔧 편집 모드: 전체 편집');
-      // } else {
-      //   editModeBtn.textContent = '🎯 부분';
-      //   editModeBtn.style.background = '#0066cc';
-      //   console.log('🔧 편집 모드: 부분 편집');
-      // }
 
       if (!lassoEditor.volumeEditFullMode) {
         editModeBtn.textContent = '🎯 부분';
@@ -900,7 +554,7 @@
         editorBtn.textContent = '✂️ 편집 모드';
         editorBtn.classList.remove('edit-active');
         scissorIcon.style.display = 'none';
-        clearAllHighlights();
+        meshController.clearAllHighlights();
       }
     });
 
@@ -908,12 +562,11 @@
     let isDrawing = false;
 
     drawBtn.addEventListener('click', () => {
-
       drawMode = !drawMode;
       console.log(drawMode);
 
       const segmentEditController = document.getElementById('segmentEditControllers');
-      
+
       if (drawMode === true) {
         console.log(nvMulti.volumes);
         segmentEditController.style.display = 'flex';
@@ -948,8 +601,8 @@
         const canvas = nv.gl?.canvas || nv.canvas;
 
         canvas.addEventListener('pointerdown', () => { isDrawing = true; });
-        canvas.addEventListener('pointerup',   () => { isDrawing = false; });
-        canvas.addEventListener('pointerleave',() => { isDrawing = false; });
+        canvas.addEventListener('pointerup', () => { isDrawing = false; });
+        canvas.addEventListener('pointerleave', () => { isDrawing = false; });
 
         // 드래그 중 위치가 바뀔 때마다 호출됨
         nv.onLocationChange = (loc) => {
@@ -963,7 +616,7 @@
           // 배경 볼륨 크기
           const dims = nv.volumes[0].hdr.dims; // [_, nx, ny, nz, ...]
           const nx = dims[1], ny = dims[2], nz = dims[3];
-          if (x<0 || y<0 || z<0 || x>=nx || y>=ny || z>=nz) return;
+          if (x < 0 || y < 0 || z < 0 || x >= nx || y >= ny || z >= nz) return;
 
           // 브러시 반지름(보xel 단위)
           const r = nv.opts.penSize | 0; // 예: 3
@@ -973,9 +626,9 @@
               const yy = y + dy; if (yy < 0 || yy >= ny) continue;
               for (let dx = -r; dx <= r; dx++) {
                 const xx = x + dx; if (xx < 0 || xx >= nx) continue;
-                if (dx*dx + dy*dy + dz*dz > r*r) continue; // 구형 브러시 내부만
+                if (dx * dx + dy * dy + dz * dz > r * r) continue; // 구형 브러시 내부만
 
-                const idx = xx + yy*nx + zz*nx*ny; // 1D 인덱싱
+                const idx = xx + yy * nx + zz * nx * ny; // 1D 인덱싱
                 mask[idx] = 4; // 원하는 라벨 값
               }
             }
@@ -990,49 +643,12 @@
         segmentEditController.style.display = 'none';
         drawBtn.classList.remove('edit-active');
         nvMulti.setDrawingEnabled(false);
-        
+
         const draw = nvMulti.drawBitmap;
         draw.fill(0);         // 모든 voxel 값 0으로
         nvMulti.refreshDrawing();
       }
     });
-
-    function selectMesh(mesh) {
-      lassoEditor.setSelectedMesh(mesh);
-      selectedMesh = mesh;
-
-      // create bounding box helper for mesh
-      if (boundingBoxHelper != undefined) {
-        scene.remove(boundingBoxHelper);
-      }
-      boundingBoxHelper = new THREE.BoxHelper(mesh, 0x00ffff);
-      scene.add(boundingBoxHelper);
-
-      // ✅ UI 항상 초기화
-      clearAllHighlights();
-
-      // ✅ 편집 모드라면 즉시 강조
-      if (lassoEditor.editMode) {
-        highlightSelectedMesh(mesh);
-      }
-    }
-
-    function highlightSelectedMesh(mesh) {
-      clearAllHighlights();
-
-      const rows = document.querySelectorAll('.mesh-row');
-      rows.forEach(row => {
-        if (row.dataset.meshId === mesh.uuid) {
-          row.classList.add('selected-row');
-        }
-      });
-    }
-
-    function clearAllHighlights() {
-      document
-        .querySelectorAll('.mesh-row')
-        .forEach(el => el.classList.remove('selected-row'));
-    }
 
     const nv = new niivue.Niivue({
       sliceType: niivue.SLICE_TYPE.MULTIPLANE,
@@ -1051,25 +667,6 @@
     }
 
     // ✅ Niivue HDR 정보 출력
-    function logNiivueVolumeInfo(nvInstance) {
-      try {
-        const segVolume = nvInstance?.volumes?.[1];
-        if (!segVolume) {
-          console.warn("⚠️ Niivue Segmentation Volume 없음");
-          return;
-        }
-
-        console.log("===== [Niivue HDR 로그] =====");
-        console.log("dims:", segVolume.hdr.dims);
-        console.log("pixDims:", segVolume.hdr.pixDims);
-        console.log("srow_x:", segVolume.hdr.srow_x);
-        console.log("srow_y:", segVolume.hdr.srow_y);
-        console.log("srow_z:", segVolume.hdr.srow_z);
-        console.log("mmCenter:", segVolume.mmCenter);
-      } catch (err) {
-        console.error("❌ Niivue HDR 로그 출력 실패:", err);
-      }
-    }
   </script>
 
 
@@ -1137,7 +734,7 @@
     #topHalf {
       display: flex;
       flex-direction: column;
-      
+
       border-color: red;
       border-style: solid;
     }
@@ -1155,7 +752,7 @@
       pointer-events: auto;
       /* 또는 all */
       z-index: 1;
-      
+
       width: 100%;
       height: 100%;
       display: flex;

@@ -2,13 +2,6 @@ import * as THREE from "three";
 import { renderNrrdMesh } from './renderNrrdMesh.js';
 
 import {
-  showMultiVolumeView,
-  createTopLeftFromAnotherView,
-  showTopVolumeOnly
-
-} from './niiViewer.js'
-
-import {
   labelColorMap1
 } from './colorMaps.js'
 
@@ -40,61 +33,8 @@ export function makeLabel(text, color, position) {
   return sprite;
 };
 
-export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
-  // ✅ 메시 생성 및 threeMeshes 전역 설정
-  const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
-  console.log("🧪 meshes 값:", meshes);
-  console.log("🧪 typeof:", typeof meshes);
-  console.log("🧪 Array.isArray(meshes):", Array.isArray(meshes));
-
-  initMeshMap(meshes);
-  buildMeshControllers(meshes);
-  addMeshsToScene(meshes);
-
-  // 카메라 맞춤
-  if (meshes.length > 0) {
-    fitCameraToMeshes(meshes, camera, controls, renderer, scene);
-  }
-
-  const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
-  const topLeftView = await createTopLeftFromAnotherView(bottomView);
-
-  topLeftView.onLocationChange = (location) => {
-    console.log("Current pointer location:", location)
-  }
-
-  const nvRender = await showTopVolumeOnly(bottomView);
-
-  buildVolumeTable(meshes, bottomView.volumes[1], scene);
-
-  topLeftView.setRadiologicalConvention(true);
-  bottomView.setRadiologicalConvention(true);
-
-  animate(controls, renderer, scene, camera);
-
-  bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
-  topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
-
-  lassoEditor.setRenderInstance(nvRender);
-  lassoEditor.setMultiInstance(bottomView);
-  lassoEditor.setTopLeftView(topLeftView);
-
-  if (!bottomView || bottomView.volumes.length < 2) {
-    console.warn("⚠️ Niivue에 볼륨이 로드되지 않았습니다.");
-  } else {
-    console.log("✅ 볼륨 로드 완료:", bottomView.volumes.map(v => v.name));
-  }
-
-  // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
-  // showVolumeBoundingBox(nvRender.volumes[0])
-
-  // logVolumeAndMeshStats(nvRender, camera, controls);
-
-  return meshes;
-}
-
 // 이 위치 (또는 적절한 다른 위치)에 추가하세요.
-function fitCameraToMeshes(meshes, camera, controls, renderer, scene) {
+export function fitCameraToMeshes(meshes, camera, controls, renderer, scene) {
   if (!meshes || meshes.length === 0) {
     console.warn("fitCameraToMeshes: 카메라를 맞출 메시가 없습니다.");
     return;
@@ -146,7 +86,7 @@ function fitCameraToMeshes(meshes, camera, controls, renderer, scene) {
   console.log("✅ 메시에 카메라 맞춤 완료.");
 }
 
-function animate(controls, renderer, scene, camera) {
+export function animate(controls, renderer, scene, camera) {
   controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(() => animate(controls, renderer, scene, camera));
