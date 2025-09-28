@@ -55,6 +55,16 @@
       cursor: pointer;
     ">✂️</button>
 
+    <button id="drawBtn" style="
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #666;
+      background: #222;
+      color: white;
+      cursor: pointer;
+    ">🖌️</button>
+
       <button id="editModeBtn" style="
       padding: 6px 12px;
       font-size: 14px;
@@ -85,6 +95,11 @@
   <div id="mainLayout">
     <div id="meshSidebar">
       <div id="meshList"></div>
+      <div id="segmentEditControllers">
+        <div>Diameter</div>
+        
+        <input id="brushSlider" type="range" min="0" max="1" step="0.01"></input>
+      </div>
     </div>
 
     <div id="viewerArea">
@@ -156,6 +171,17 @@
       z-index: 10;
     }
 
+    #segmentEditControllers {
+      display: flex;
+      flex-direction: column;
+      color: white;
+      display: none;
+    }
+
+    #brushSlider {
+      width: 100%;
+    }
+
   </style>
   <script type="importmap">
 {
@@ -195,7 +221,16 @@
     import { meshToVoxel } from './utils/meshToVolume.js';
     import { voxelToNRRD } from './utils/nrrdEncoder.js';
 
-    
+    import {
+      buildVolumeTable,
+      createLeftLabelSection
+    } from './volumeInfoTable.js';
+
+    import {
+      adjustMeshCanvasSize,
+      makeLabel
+    } from './viewer/meshViewer.js'
+
     const originalWarn = console.warn;
 
     console.warn = (...args) => {
@@ -258,21 +293,11 @@
     };
 
     initThreeJS()
-    // loadTestVolumes();
-
-    function adjustMeshCanvasSize() {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;        // Perspective
-      camera.updateProjectionMatrix();
-
-    }
+    loadTestVolumes();
 
     function initThreeJS() {
       renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
-      const ro = new ResizeObserver(() => adjustMeshCanvasSize());
+      const ro = new ResizeObserver(() => adjustMeshCanvasSize(canvas, renderer, camera));
       ro.observe(canvas);
 
       scene = new THREE.Scene();
@@ -282,7 +307,7 @@
       camera.position.set(500, 500, 500);
       camera.lookAt(new THREE.Vector3(0, 0, 0));
 
-      adjustMeshCanvasSize();
+      adjustMeshCanvasSize(canvas, renderer, camera);
 
       // ✅ AmbientLight: 전체적인 기본 밝기
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
@@ -326,24 +351,7 @@
       const axesHelper = new THREE.AxesHelper(500);
       axisGroup.add(axesHelper);
 
-      const makeLabel = (text, color, position) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 64;
-        canvas.height = 64;
-        ctx.fillStyle = color;
-        ctx.font = 'bold 100px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, 32, 32);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(20, 20, 1);
-        sprite.position.copy(position);
-        return sprite;
-      };
+      
 
       scene.add(makeLabel('X', 'red', new THREE.Vector3(500, 0, 0)));   // +X (Right)
       scene.add(makeLabel('Y', 'blue', new THREE.Vector3(0, 500, 0))); // +y (Anterior)
@@ -381,7 +389,7 @@
 
       const nrrdUrl = URL.createObjectURL(nrrdBlob);
       niiUrl = URL.createObjectURL(niiBlob);
-      
+
       await renderVolumeMeshAndSlices(niiUrl, nrrdUrl);
     }
 
@@ -393,8 +401,6 @@
     }
 
     window.initMeshMap = initMeshMap;
-
-    
 
     async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl) {
       // ✅ 메시 생성 및 threeMeshes 전역 설정
@@ -415,10 +421,15 @@
       threeMeshes = meshes;
       
       const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
-      await showTopVolumeOnly(bottomView);
       const topLeftView = await createTopLeftFromAnotherView(bottomView);
 
-      buildVolumeTable(meshes, bottomView.volumes[1]);
+      topLeftView.onLocationChange = (location) => {
+        console.log("Current pointer location:", location)
+      }
+
+      await showTopVolumeOnly(bottomView);
+
+      buildVolumeTable(meshes, bottomView.volumes[1], scene);
 
       topLeftView.setRadiologicalConvention(true);
       bottomView.setRadiologicalConvention(true);
@@ -441,7 +452,7 @@
       // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
       // showVolumeBoundingBox(nvRender.volumes[0])
       
-      logVolumeAndMeshStats(nvRender, camera, controls);
+      // logVolumeAndMeshStats(nvRender, camera, controls);
     }
 
     function showVolumeBoundingBox(volume)
@@ -833,31 +844,6 @@
       });
     }
 
-    function buildVolumeTable(meshes, volume) {
-      const meshListDiv = document.getElementById('volumeTableContent');
-      meshListDiv.innerHTML = '';
-
-      console.log(meshListDiv.children);
-
-      const volumeValues = computeLabelVolumesDict(volume);
-
-      meshes.forEach((mesh, idx) => {
-        if (!mesh.material) return;
-
-        // 씬에 추가
-        if (!scene.children.includes(mesh)) {
-          scene.add(mesh);
-        }
-
-        // UI 행 추가
-        const labelKey = parseInt(mesh.userData.label);
-        const computedVolume = volumeValues[labelKey];
-        console.log('===', labelKey, computedVolume, volumeValues);
-        const row = createVolumeRow(mesh, idx, computedVolume);
-        meshListDiv.appendChild(row);
-      });
-    }
-
     window.buildVolumeTable = buildVolumeTable;
 
     function addMeshsToScene(meshes) {
@@ -995,68 +981,6 @@
       return row;
     }
 
-    function createVolumeRow(mesh, idx, computedVolumes) {
-      const labelValue = mesh.label || mesh.userData?.label;
-      const labelText = label_name_mapping[labelValue] || `Label ${labelValue}`;
-      const row = document.createElement('div');
-
-      row.classList.add('mesh-row');
-
-      // ✅ mesh.uuid를 dataset에 저장
-      row.dataset.meshId = mesh.uuid;
-      row.dataset.label = labelValue;
-
-      Object.assign(row.style, {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        background: '#1A1A1A',
-        borderRadius: '8px',
-        padding: '8px 12px',
-        marginBottom: '8px',
-        cursor: 'pointer',
-      });
-
-      const left = createLeftLabelSection(mesh, labelText);
-      row.appendChild(left);
-      
-      const controlPanel = createVolumeValues(computedVolumes);
-      row.appendChild(controlPanel);
-      return row;
-    }
-
-    function createLeftLabelSection(mesh, labelText) {
-      const color = mesh.material.color || new THREE.Color(0.5, 0.5, 0.5);
-
-      const container = document.createElement('div');
-      Object.assign(container.style, {
-        display: 'flex',
-        alignItems: 'center',
-        flex: '1',
-      });
-
-      const colorBox = document.createElement('div');
-      Object.assign(colorBox.style, {
-        width: '12px',
-        height: '12px',
-        borderRadius: '50%',
-        background: `rgba(${color.r * 255}, ${color.g * 255}, ${color.b * 255}, 1)`,
-        marginRight: '8px',
-      });
-      container.appendChild(colorBox);
-
-      const label = document.createElement('span');
-      label.innerText = labelText;
-      Object.assign(label.style, {
-        color: '#fff',
-        fontSize: '14px',
-        flex: '1',
-      });
-      container.appendChild(label);
-
-      return container;
-    }
-
     function getMeshByLabel(label) {
       return meshMap[label];
     }
@@ -1154,41 +1078,6 @@
       return container;
     }
 
-    function createVolumeValues(computedVolumes) {
-      const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.alignItems = 'center';
-      container.style.justifyContent = 'space-between';
-      container.style.gap = '12px';
-      container.style.flex = '1';
-
-      // 왼쪽: 슬라이더 + 숫자
-      const sliderGroup = document.createElement('div');
-      sliderGroup.style.display = 'flex';
-      sliderGroup.style.alignItems = 'center';
-      sliderGroup.style.gap = '8px';
-
-      const valueText = document.createElement('span');
-      valueText.innerText = computedVolumes.mm.toFixed(1);
-      valueText.style.fontSize = '12px';
-      valueText.style.color = 'white';
-      valueText.style.width = '70px';
-      valueText.style.textAlign = 'right';
-      sliderGroup.appendChild(valueText);
-
-      const mLText = document.createElement('span');
-      mLText.innerText = computedVolumes.mL.toFixed(2) + ' cm3';
-      mLText.style.fontSize = '12px';
-      mLText.style.color = 'white';
-      mLText.style.width = '70px';
-      mLText.style.textAlign = 'right';
-      sliderGroup.appendChild(mLText);
-
-      container.appendChild(sliderGroup); // 왼쪽
-
-      return container;
-    }
-
     const lassoEditor = new LassoEditor(canvas, camera, renderer, scene, controls);
 
     // 🎨 전역 함수로 색상 업데이트 노출 
@@ -1208,6 +1097,7 @@
     });
 
     const editorBtn = document.getElementById('editorBtn');
+    const drawBtn = document.getElementById('drawBtn');
     const editModeBtn = document.getElementById('editModeBtn');
     const scissorIcon = document.getElementById('scissorIcon');
 
@@ -1254,6 +1144,99 @@
         editorBtn.classList.remove('edit-active');
         scissorIcon.style.display = 'none';
         clearAllHighlights();
+      }
+    });
+
+    let drawMode = false;
+    let isDrawing = false;
+
+    drawBtn.addEventListener('click', () => {
+
+      drawMode = !drawMode;
+      console.log(drawMode);
+
+      const segmentEditController = document.getElementById('segmentEditControllers');
+      
+      if (drawMode === true) {
+        console.log(nvMulti.volumes);
+        segmentEditController.style.display = 'flex';
+
+        drawBtn.classList.add('edit-active');
+
+        // 동적으로 변경
+        nvMulti.opts.penSize = 10;
+        // nvMulti.drawScene();
+        // nvMulti.setPenValue(0, false);
+        nvMulti.drawRimOpacity = 0.6;
+        // nvMulti.setDrawingEnabled(true);
+
+        const nv = nvMulti;
+
+        nv.setDrawingEnabled(true);
+        nv.setDrawOpacity(0.6); // 보이도록
+        // 핵심: 기본 드래그 행동을 "콜백만"으로 전환
+        if (typeof nv.setDragMode === 'function') {
+          nv.setDragMode(nv.dragModes.callbackOnly);
+        } else {
+          // 구버전 대비 안전망
+          nv.opts.dragMode = nv.dragModes.callbackOnly;
+          nv.drawScene();
+        }
+
+        // 2) 초기화(선택)
+        const mask = nv.drawBitmap;
+        mask.fill(0);
+        nv.refreshDrawing(); // 드로잉 텍스처 갱신 (updateGLVolume 아님)
+
+        const canvas = nv.gl?.canvas || nv.canvas;
+
+        canvas.addEventListener('pointerdown', () => { isDrawing = true; });
+        canvas.addEventListener('pointerup',   () => { isDrawing = false; });
+        canvas.addEventListener('pointerleave',() => { isDrawing = false; });
+
+        // 드래그 중 위치가 바뀔 때마다 호출됨
+        nv.onLocationChange = (loc) => {
+          if (!isDrawing) return;
+
+          // voxel 좌표
+          const x = Math.floor(loc.vox[0]);
+          const y = Math.floor(loc.vox[1]);
+          const z = Math.floor(loc.vox[2]);
+
+          // 배경 볼륨 크기
+          const dims = nv.volumes[0].hdr.dims; // [_, nx, ny, nz, ...]
+          const nx = dims[1], ny = dims[2], nz = dims[3];
+          if (x<0 || y<0 || z<0 || x>=nx || y>=ny || z>=nz) return;
+
+          // 브러시 반지름(보xel 단위)
+          const r = nv.opts.penSize | 0; // 예: 3
+          for (let dz = -r; dz <= r; dz++) {
+            const zz = z + dz; if (zz < 0 || zz >= nz) continue;
+            for (let dy = -r; dy <= r; dy++) {
+              const yy = y + dy; if (yy < 0 || yy >= ny) continue;
+              for (let dx = -r; dx <= r; dx++) {
+                const xx = x + dx; if (xx < 0 || xx >= nx) continue;
+                if (dx*dx + dy*dy + dz*dz > r*r) continue; // 구형 브러시 내부만
+
+                const idx = xx + yy*nx + zz*nx*ny; // 1D 인덱싱
+                mask[idx] = 4; // 원하는 라벨 값
+              }
+            }
+          }
+
+          nv.refreshDrawing(); // 텍스처 갱신 (필수)
+          // nv.drawScene();   // 필요 시
+        };
+
+
+      } else {
+        segmentEditController.style.display = 'none';
+        drawBtn.classList.remove('edit-active');
+        nvMulti.setDrawingEnabled(false);
+        
+        const draw = nvMulti.drawBitmap;
+        draw.fill(0);         // 모든 voxel 값 0으로
+        nvMulti.refreshDrawing();
       }
     });
 
@@ -1346,6 +1329,14 @@
     }
 
     #editorBtn.edit-active {
+      background: #007bff !important;
+      /* 파란색 강조 */
+      border: 2px solid #00aaff !important;
+      color: white;
+      font-weight: bold;
+    }
+
+    #drawBtn.edit-active {
       background: #007bff !important;
       /* 파란색 강조 */
       border: 2px solid #00aaff !important;

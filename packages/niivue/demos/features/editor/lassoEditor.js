@@ -2025,8 +2025,6 @@ export class LassoEditor {
 
             // 각 복셀을 확인하여 라쏘 영역 내에 있으면 255로 변경
             let totalChecked = 0;
-            let screenPosSuccessCount = 0;
-            let polygonTestCount = 0;
 
             console.log("🔍 복셀 스캔 시작...");
 
@@ -2060,29 +2058,14 @@ export class LassoEditor {
                         // 현재 캔버스에 따라 스크린 좌표로 변환
                         const screenPos = this.projectMeshVertexToScreen(worldPos, 'threeJS');
                         if (screenPos) {
-                            screenPosSuccessCount++;
-
-                            // 처음 5개 성공한 좌표 변환 로그
-                            if (screenPosSuccessCount <= 1) {
-                                console.log(`🔄 좌표 변환 성공 ${screenPosSuccessCount}: 복셀(${x},${y},${z}) → 월드(${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)}, ${worldPos.z.toFixed(1)}) → 스크린(${screenPos.x.toFixed(1)}, ${screenPos.y.toFixed(1)})`);
-                            }
 
                             // 라쏘 영역 내에 있는지 확인
-                            polygonTestCount++;
+                            
                             const isInside = this.pointInPolygon(screenPos, currentPoints);
-
-                            if (polygonTestCount <= 5) {
-                                console.log(`🔍 다각형 테스트 ${polygonTestCount}: 스크린(${screenPos.x.toFixed(1)}, ${screenPos.y.toFixed(1)}) → 내부: ${isInside}`);
-                            }
 
                             if (isInside && this.selectedMesh.userData.label == volume.img[idx]) {
                                 volume.img[idx] = 0; // 편집된 부분으로 변경
                                 changedVoxels++;
-
-                                // 처음 5개만 로그 출력
-                                if (changedVoxels <= 1) {
-                                    console.log(`🎯 ${viewerName} 라쏘 내 복셀 변경: (${x},${y},${z}) → 255 (편집됨)`);
-                                }
                             }
                         } else if (totalChecked <= 5) {
                             console.log(`❌ 좌표 변환 실패 ${totalChecked}: 복셀(${x},${y},${z}) → 월드(${worldPos.x.toFixed(1)}, ${worldPos.y.toFixed(1)}, ${worldPos.z.toFixed(1)}) → 스크린: null`);
@@ -2093,8 +2076,6 @@ export class LassoEditor {
 
             console.log("📊 부분 편집 통계:");
             console.log(`  - 총 검사한 복셀: ${totalChecked}개`);
-            console.log(`  - 스크린 좌표 변환 성공: ${screenPosSuccessCount}개`);
-            console.log(`  - 다각형 내부 테스트: ${polygonTestCount}개`);
             console.log(`  - 변경된 복셀: ${changedVoxels}개`);
         }
 
@@ -2435,24 +2416,6 @@ export class LassoEditor {
                 window.bindMeshControllers(newMeshes);
                 window.buildVolumeTable(newMeshes, segVolume);
             });
-
-        console.log(segVolume);     
-
-        // // 렌더 뷰어의 볼륨도 편집
-        // if (this.nvRender && this.nvRender.volumes && this.nvRender.volumes[0]) {
-        //     const renderVolume = this.nvRender.volumes[0];
-        //     if (renderVolume.img && renderVolume.img.length > 0) {
-        //         console.log("🔄 렌더 뷰어 볼륨 편집 시작...");
-        //         this.editSingleVolumeData(renderVolume, "렌더");
-        //         console.log(renderVolume);
-        //     } else {
-        //         console.warn("⚠️ 렌더 볼륨 데이터가 없습니다.");
-        //     }
-        // } else {
-        //     console.warn("⚠️ 렌더 뷰어가 준비되지 않았습니다.");
-        // }
-
-        // 볼륨 업데이트
         this.updateBothViewers();
     }
 
