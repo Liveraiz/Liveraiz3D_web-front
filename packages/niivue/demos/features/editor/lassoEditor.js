@@ -2414,7 +2414,7 @@ export class LassoEditor {
                 window.initMeshMap(newMeshes);
                 window.addMeshsToScene(newMeshes);
                 window.bindMeshControllers(newMeshes);
-                window.buildVolumeTable(newMeshes, segVolume);
+                window.buildVolumeTable(newMeshes, segVolume, this.scene);
             });
         this.updateBothViewers();
     }
