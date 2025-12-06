@@ -96,15 +96,14 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   return meshes;
 }
 
-const input = document.getElementById('dicomInput');
 const status = document.getElementById('status');
 
 let meshes = [];
 
-input.addEventListener('change', async (e) => {
+export async function handleDicomFiles(fileList) {
   try {
     const { niiUrl, nrrdUrl } = await uploadAndInferDicomBundle(
-      e.target.files,
+      fileList,
       buildApiUrl('/infer-dicom-bundle'),
       (msg) => status.textContent = msg
     );
@@ -113,7 +112,7 @@ input.addEventListener('change', async (e) => {
     console.error(err);
     status.textContent = `❌ 오류: ${err.message}`;
   }
-});
+}
 
 export async function loadTestVolumes() {
   const [niiBlob, nrrdBlob] = await Promise.all([
@@ -163,7 +162,6 @@ export function handleUndoClick() {
 }
 
 const editorBtn = document.getElementById('editorBtn');
-const drawBtn = document.getElementById('drawBtn');
 const editModeBtn = document.getElementById('editModeBtn');
 const scissorIcon = document.getElementById('scissorIcon');
 

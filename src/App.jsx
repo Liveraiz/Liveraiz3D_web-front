@@ -4,6 +4,7 @@ import logo from './images/logo.png';
 import { IconButton } from './components/IconButton.jsx';
 import { MeshSidebar } from './components/MeshSidebar.jsx';
 import { ViewerArea } from './components/ViewerArea.jsx';
+import { DicomFileSelector } from './components/DicomFileSelector.jsx';
 
 const headerStyle = {
   display: 'flex',
@@ -61,6 +62,13 @@ export default function App() {
     }
   };
 
+  const handleDicomInput = (files) => {
+    const mod = mainModuleRef.current;
+    if (mod?.handleDicomFiles) {
+      mod.handleDicomFiles(files);
+    }
+  };
+
   return (
     <div className="app-shell">
       <header style={headerStyle}>
@@ -72,7 +80,6 @@ export default function App() {
           <IconButton id="undoBtn" onClick={handleUndo}>↩️</IconButton>
           <IconButton id="editorBtn" onClick={handleEditorToggle}>✂️</IconButton>
           <IconButton id="drawBtn" onClick={handleDraw}>🖌️</IconButton>
-
           <IconButton id="sidebarToggle" className="mobile-toggle-btn" onClick={handleSidebarToggle}>
             📑 목록
           </IconButton>
@@ -84,10 +91,8 @@ export default function App() {
           >
             🎯 부분
           </IconButton>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <input type="file" id="dicomInput" webkitdirectory="true" multiple />
+          <DicomFileSelector onChange={(files) => handleDicomInput(files)}/>
           <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
             진행 중 없음
           </span>
@@ -103,7 +108,6 @@ export default function App() {
 
       <div id="mainLayout">
         <MeshSidebar />
-
         <ViewerArea />
       </div>
     </div>
