@@ -156,11 +156,11 @@ window.getMeshByLabel = getMeshByLabel;
 const lassoEditor = new LassoEditor(canvas, camera, renderer, scene, controls);
 window.lassoEditor = lassoEditor;
 
-document.getElementById('undoBtn').addEventListener('click', () => {
+export function handleUndoClick() {
   if (lassoEditor.selectedMesh) {
     lassoEditor.undoManager.undo(lassoEditor.selectedMesh);
   }
-});
+}
 
 const editorBtn = document.getElementById('editorBtn');
 const drawBtn = document.getElementById('drawBtn');
@@ -168,7 +168,7 @@ const editModeBtn = document.getElementById('editModeBtn');
 const scissorIcon = document.getElementById('scissorIcon');
 
 // ✅ 편집 모드 전환 버튼
-editModeBtn.addEventListener('click', () => {
+export function handleEditModeToggle() {
   lassoEditor.volumeEditFullMode = !lassoEditor.volumeEditFullMode;
 
   if (!lassoEditor.volumeEditFullMode) {
@@ -178,9 +178,9 @@ editModeBtn.addEventListener('click', () => {
     editModeBtn.textContent = '🌍 전체';
     editModeBtn.style.background = '#222';
   }
-});
+}
 
-editorBtn.addEventListener('click', () => {
+export function handleEditorToggle() {
   const isActive = !lassoEditor.editMode;
   lassoEditor.toggleEditMode(isActive);
 
@@ -201,11 +201,11 @@ editorBtn.addEventListener('click', () => {
     scissorIcon.style.display = 'none';
     meshController.clearAllHighlights();
   }
-});
+}
 
-drawBtn.addEventListener('click', () => {
+export function handleDrawClick() {
   activateMaskEdit(nvMulti, lassoEditor);
-});
+}
 
 const meshSidebarEl = document.getElementById('meshSidebar');
 const sidebarToggleBtn = document.getElementById('sidebarToggle');
@@ -217,12 +217,14 @@ const setSidebarOpen = (isOpen) => {
   document.body.classList.toggle('sidebar-open', isOpen);
 };
 
-sidebarToggleBtn?.addEventListener('click', () => {
+export function handleSidebarToggle() {
   const willOpen = !meshSidebarEl.classList.contains('open');
   setSidebarOpen(willOpen);
-});
+}
 
-closeSidebarBtn?.addEventListener('click', () => setSidebarOpen(false));
+export function handleSidebarClose() {
+  setSidebarOpen(false);
+}
 
 window.addEventListener('resize', () => {
   if (window.innerWidth > 900) {
