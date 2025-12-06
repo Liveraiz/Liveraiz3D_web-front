@@ -53,7 +53,6 @@ let meshController = null;
 
 const canvas = document.getElementById('threeCanvas');
 let nvMulti = null;     // 멀티플레인 뷰어
-let nvRender = null;    // 렌더 뷰어
 let niiUrl = null;
 
 let {scene, renderer, camera, controls} = initThreeJS(canvas);
@@ -97,22 +96,6 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   return meshes;
 }
 
-const testLoadBtn = document.getElementById('testLoadBtn');
-testLoadBtn.addEventListener('click', async () => {
-  try {
-    testLoadBtn.disabled = true;
-    testLoadBtn.textContent = '로딩 중... ⏳';
-    niiUrl = null;
-    threeMeshes = await loadTestVolumes();
-    testLoadBtn.textContent = '🧪 테스트 볼륨 로드';
-  } catch (err) {
-    console.error(err);
-    status.textContent = `❌ 오류: ${err.message}`;
-  } finally {
-    testLoadBtn.disabled = false;
-  }
-});
-
 const input = document.getElementById('dicomInput');
 const status = document.getElementById('status');
 
@@ -132,7 +115,7 @@ input.addEventListener('change', async (e) => {
   }
 });
 
-async function loadTestVolumes() {
+export async function loadTestVolumes() {
   const [niiBlob, nrrdBlob] = await Promise.all([
     fetch('/features/data/converted.nii.gz').then(res => res.blob()),
     fetch('/features/data/inferred.nrrd').then(res => res.blob())
