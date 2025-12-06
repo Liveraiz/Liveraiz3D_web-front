@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@niivue/niivue": "^0.65.0",
     "jszip": "^3.10.1",
     "three": "^0.161.0"
   },

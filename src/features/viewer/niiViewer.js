@@ -1,4 +1,4 @@
-import * as niivue from '../../dist/index.js'; // 또는 CDN 사용
+import * as niivue from "@niivue/niivue";
 
 import {
   labelColorMap1

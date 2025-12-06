@@ -1,42 +1,20 @@
-import * as THREE from "three";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { NRRDLoader } from 'three/examples/jsm/loaders/NRRDLoader.js';
-
-import { OBJExporter } from "three/examples/jsm/exporters/OBJExporter.js";
-
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-
 import { renderNrrdMesh } from './features/viewer/renderNrrdMesh.js';
 import {
-  labelColorMap, labelNameMap,
-  applyColorTheme, createNiivueLUT, applyMeshColors,
   labelColorMap1
 } from './features/viewer/colorMaps.js';
 
-import { marchingCubes } from './features/utils/marchingCubes.js';
 import { uploadAndInferDicomBundle } from './features/upload/uploadAndInferDicomBundle.js';
 
-import * as niivue from './dist/index.js'; // 또는 CDN 사용
-
 import { LassoEditor } from './features/editor/lassoEditor.js';
-import { meshToVoxel } from './features/utils/meshToVolume.js';
-import { voxelToNRRD } from './features/utils/nrrdEncoder.js';
 
 import {
   buildVolumeTable,
-  createLeftLabelSection
 } from './features/volumeInfoTable.js';
 
 import {
-  adjustMeshCanvasSize,
-  makeLabel,
   fitCameraToMeshes,
   animate,
   initThreeJS,
-  showVolumeBoundingBox
 } from './features/viewer/meshViewer.js'
 
 import {
