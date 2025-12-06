@@ -1,4 +1,4 @@
-import JSZip from 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm';
+import JSZip from 'jszip';
 
 /**
  * DICOM 파일을 서버로 업로드하고, 반환된 zip 파일에서 .nii.gz와 .nrrd Blob URL을 생성합니다.

@@ -46426,4 +46426,3 @@ export {
   cmapper,
   ColorTables as colortables
 };
-//# sourceMappingURL=index.js.map
