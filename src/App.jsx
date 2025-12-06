@@ -1,22 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './styles.css';
-import logo from './images/logo.png';
 import { IconButton } from './components/IconButton.jsx';
 import { MeshSidebar } from './components/MeshSidebar.jsx';
 import { ViewerArea } from './components/ViewerArea.jsx';
 import { DicomFileSelector } from './components/DicomFileSelector.jsx';
-
-const headerStyle = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '0 20px',
-  backgroundColor: '#111',
-  borderBottom: '1px solid #444',
-  color: 'white',
-  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-  boxSizing: 'border-box',
-};
+import { LiveraizLogo } from './components/LiveraizLogo.jsx';
+import { ToolBar } from './components/ToolBar.jsx';
 
 export default function App() {
   const mainModuleRef = useRef(null);
@@ -72,18 +61,20 @@ export default function App() {
   return (
     <div className="app-shell">
       <header style={headerStyle}>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <img src={logo} alt="Liveraizer Logo" style={{ height: 36, objectFit: 'contain', display: 'block' }} />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton id="undoBtn" onClick={handleUndo}>↩️</IconButton>
-          <IconButton id="editorBtn" onClick={handleEditorToggle}>✂️</IconButton>
-          <IconButton id="drawBtn" onClick={handleDraw}>🖌️</IconButton>
+        <LiveraizLogo />
+        <ToolBar>
+          <IconButton id="undoBtn" onClick={handleUndo}>
+            ↩️
+          </IconButton>
+          <IconButton id="editorBtn" onClick={handleEditorToggle}>
+            ✂️
+          </IconButton>
+          <IconButton id="drawBtn" onClick={handleDraw}>
+            🖌️
+          </IconButton>
           <IconButton id="sidebarToggle" className="mobile-toggle-btn" onClick={handleSidebarToggle}>
             📑 목록
           </IconButton>
-
           <IconButton
             id="editModeBtn"
             style={{ background: '#0066cc', marginLeft: 4 }}
@@ -91,7 +82,6 @@ export default function App() {
           >
             🎯 부분
           </IconButton>
-
           <DicomFileSelector onChange={(files) => handleDicomInput(files)}/>
           <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
             진행 중 없음
@@ -103,7 +93,7 @@ export default function App() {
           >
             {isTestLoading ? '로딩 중... ⏳' : '🧪 테스트 볼륨 로드'}
           </IconButton>
-        </div>
+        </ToolBar>
       </header>
 
       <div id="mainLayout">
@@ -113,3 +103,15 @@ export default function App() {
     </div>
   );
 }
+
+const headerStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '0 20px',
+  backgroundColor: '#111',
+  borderBottom: '1px solid #444',
+  color: 'white',
+  fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+  boxSizing: 'border-box',
+};
