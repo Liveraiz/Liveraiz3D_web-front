@@ -8,7 +8,6 @@ export function ViewerArea() {
           <div id="leftTopContainer">
             <canvas id="leftTop"></canvas>
           </div>
-
           <div id="bottomHalf" style={{ position: 'relative' }}>
             <div id="labelContainer" style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 20 }}></div>
             <canvas id="threeCanvas"></canvas>

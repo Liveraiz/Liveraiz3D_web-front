@@ -33,6 +33,7 @@ import {
 
 // ✅ API 엔드포인트 설정 (기본: localhost 개발 서버)
 const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
+// const DEFAULT_API_BASE = 'http://localhost:5051';
 const API_BASE = (window.NIIVUE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 const buildApiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 window.NIIVUE_API_BASE = API_BASE;

@@ -13,7 +13,7 @@ export default function App() {
 
   useEffect(() => {
     // Run existing imperative setup after the DOM is mounted
-    import('./main.js').then((mod) => {
+    import('./appController.js').then((mod) => {
       mainModuleRef.current = mod;
     });
   }, []);
@@ -78,8 +78,7 @@ export default function App() {
           <IconButton
             id="editModeBtn"
             style={{ background: '#0066cc', marginLeft: 4 }}
-            onClick={handleEditModeToggle}
-          >
+            onClick={handleEditModeToggle}>
             🎯 부분
           </IconButton>
           <DicomFileSelector onChange={(files) => handleDicomInput(files)}/>
