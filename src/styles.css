@@ -102,6 +102,151 @@ header {
   min-width: 300px;
 }
 
+#dicomSummary {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 10px;
+  background: #121212;
+  color: #eaeaea;
+}
+
+#dicomSummaryTitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+#dicomSummaryContent {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #c8c8c8;
+}
+
+#dicomSummaryContent .dicom-summary-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+#dicomSummaryContent .dicom-stat-chip {
+  background: #1a1a1a;
+  border: 1px solid #2f2f2f;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+#dicomSummaryContent .dicom-stat-label {
+  font-size: 11px;
+  color: #9a9a9a;
+}
+
+#dicomSummaryContent .dicom-stat-value {
+  font-size: 13px;
+  color: #f0f0f0;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+#dicomSummaryContent .dicom-summary-section {
+  margin-bottom: 12px;
+}
+
+#dicomSummaryContent .dicom-summary-section h4 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #dcdcdc;
+}
+
+#dicomSummaryContent .dicom-summary-field {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+#dicomSummaryContent .dicom-summary-label {
+  color: #9f9f9f;
+}
+
+#dicomSummaryContent .dicom-summary-value {
+  color: #f0f0f0;
+  text-align: right;
+}
+
+#dicomSummaryContent .dicom-summary-message {
+  margin: 0;
+  color: #b8b8b8;
+}
+
+#dicomSummaryContent .dicom-series-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+#dicomSummaryContent .dicom-series-table th,
+#dicomSummaryContent .dicom-series-table td {
+  border-bottom: 1px solid #2d2d2d;
+  padding: 6px 4px;
+  font-size: 11px;
+  vertical-align: top;
+}
+
+#dicomSummaryContent .dicom-series-table th {
+  color: #acacac;
+  text-align: left;
+}
+
+#dicomSummaryContent .dicom-series-table td {
+  color: #efefef;
+  word-break: break-word;
+}
+
+#dicomSummaryContent .dicom-series-row {
+  cursor: pointer;
+}
+
+#dicomSummaryContent .dicom-series-row:hover {
+  background: rgba(0, 123, 255, 0.16);
+}
+
+#dicomSummaryContent .dicom-series-row.is-selected {
+  background: rgba(0, 123, 255, 0.28);
+}
+
+#dicomSummaryContent .dicom-series-table th:nth-child(1),
+#dicomSummaryContent .dicom-series-table td:nth-child(1) {
+  width: 10%;
+}
+
+#dicomSummaryContent .dicom-series-table th:nth-child(2),
+#dicomSummaryContent .dicom-series-table td:nth-child(2) {
+  width: 12%;
+}
+
+#dicomSummaryContent .dicom-series-table th:nth-child(3),
+#dicomSummaryContent .dicom-series-table td:nth-child(3) {
+  width: 54%;
+}
+
+#dicomSummaryContent .dicom-series-table th:nth-child(4),
+#dicomSummaryContent .dicom-series-table td:nth-child(4) {
+  width: 24%;
+}
+
+#dicomSummaryContent .dicom-failure-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+#dicomSummaryContent .dicom-failure-list li {
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
 #topHalf {
   display: flex;
   flex-direction: column;

@@ -10,6 +10,12 @@ import { ToolBar } from './components/ToolBar.jsx';
 export default function App() {
   const mainModuleRef = useRef(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
+  const [selectedDicomFiles, setSelectedDicomFiles] = useState([]);
+  const [isConverting3D, setIsConverting3D] = useState(false);
+  const [dicomSummary, setDicomSummary] = useState(null);
+  const [isDicomParsing, setIsDicomParsing] = useState(false);
+  const [dicomParseError, setDicomParseError] = useState('');
+  const [selectedSeriesKey, setSelectedSeriesKey] = useState('');
 
   useEffect(() => {
     // Run existing imperative setup after the DOM is mounted
@@ -51,10 +57,80 @@ export default function App() {
     }
   };
 
-  const handleDicomInput = (files) => {
+  const handleDicomInput = async (files) => {
+    const normalizedFiles = Array.from(files || []);
+    setSelectedDicomFiles(normalizedFiles);
+    setDicomParseError('');
+
     const mod = mainModuleRef.current;
-    if (mod?.handleDicomFiles) {
-      mod.handleDicomFiles(files);
+    if (!mod?.handleDicomFiles) return;
+
+    const statusEl = document.getElementById('status');
+
+    if (normalizedFiles.length === 0) {
+      setDicomSummary(null);
+      setSelectedSeriesKey('');
+      statusEl && (statusEl.textContent = '진행 중 없음');
+      return;
+    }
+
+    try {
+      setIsDicomParsing(true);
+      setDicomSummary(null);
+      statusEl && (statusEl.textContent = 'DICOM 파싱 중...');
+      const summary = await mod.handleDicomFiles(normalizedFiles);
+      setDicomSummary(summary || null);
+      setSelectedSeriesKey(summary?.series?.[0]?.seriesKey || '');
+      if (summary) {
+        statusEl && (statusEl.textContent = `✅ 파싱 완료 (${summary.parsedCount}/${summary.candidateCount})`);
+      } else {
+        statusEl && (statusEl.textContent = '진행 중 없음');
+      }
+    } catch (err) {
+      console.error(err);
+      setDicomSummary(null);
+      setDicomParseError(err.message);
+      setSelectedSeriesKey('');
+      statusEl && (statusEl.textContent = `❌ 파싱 오류: ${err.message}`);
+    } finally {
+      setIsDicomParsing(false);
+    }
+  };
+
+  const handle3DConvert = async () => {
+    const mod = mainModuleRef.current;
+    if (!mod?.handleConvertTo3D) return;
+    const statusEl = document.getElementById('status');
+
+    let filesForConvert = selectedDicomFiles;
+    if (dicomSummary?.series?.length > 0) {
+      if (!selectedSeriesKey) {
+        statusEl && (statusEl.textContent = '❌ 변환할 Volume을 먼저 선택하세요.');
+        return;
+      }
+
+      const selectedSeries = dicomSummary.series.find((series) => series.seriesKey === selectedSeriesKey);
+      console.log(filesForConvert);
+      console.log(selectedSeries);
+      const selectedPaths = new Set(selectedSeries?.filePaths || []);
+      const filteredFiles = selectedDicomFiles.filter((file) =>
+        selectedPaths.has(file.webkitRelativePath || file.name)
+      );
+
+      console.log('filteredFiles',filteredFiles);
+      if (filteredFiles.length === 0) {
+        statusEl && (statusEl.textContent = '❌ 선택된 Volume에 해당하는 파일을 찾지 못했습니다.');
+        return;
+      }
+      filesForConvert = filteredFiles;
+    }
+
+    try {
+      setIsConverting3D(true);
+      console.log("🚀 3D 변환 핸들러 호출, 파일 수:", filesForConvert.length, filesForConvert);
+      await mod.handleConvertTo3D(filesForConvert);
+    } finally {
+      setIsConverting3D(false);
     }
   };
 
@@ -81,7 +157,14 @@ export default function App() {
             onClick={handleEditModeToggle}>
             🎯 부분
           </IconButton>
-          <DicomFileSelector onChange={(files) => handleDicomInput(files)}/>
+          <DicomFileSelector onChange={(files) => handleDicomInput(files)} />
+          <IconButton
+            id="convert3dBtn"
+            onClick={handle3DConvert}
+            disabled={isConverting3D || isDicomParsing || selectedDicomFiles.length === 0}
+          >
+            {isConverting3D ? '변환 중...' : '3D변환'}
+          </IconButton>
           <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
             진행 중 없음
           </span>
@@ -96,7 +179,13 @@ export default function App() {
       </header>
 
       <div id="mainLayout">
-        <MeshSidebar />
+        <MeshSidebar
+          dicomSummary={dicomSummary}
+          isDicomParsing={isDicomParsing}
+          dicomParseError={dicomParseError}
+          selectedSeriesKey={selectedSeriesKey}
+          onSelectSeries={setSelectedSeriesKey}
+        />
         <ViewerArea />
       </div>
     </div>

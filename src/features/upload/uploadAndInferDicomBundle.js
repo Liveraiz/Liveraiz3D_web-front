@@ -9,7 +9,7 @@ import JSZip from 'jszip';
  * @returns {Promise<{ niiUrl: string, nrrdUrl: string }>} Blob URL 객체
  */
 export async function uploadAndInferDicomBundle(fileList, endpoint, onStatus) {
-    const files = Array.from(fileList).filter(f => f.name.endsWith('.dcm'));
+    const files = Array.from(fileList);
     if (!files.length) throw new Error("DICOM(.dcm) 파일이 없습니다.");
 
     const folderName = files[0].webkitRelativePath?.split('/')?.[0] || `upload-${Date.now()}`;

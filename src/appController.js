@@ -3,6 +3,7 @@ import {
   labelColorMap1
 } from './features/viewer/colorMaps.js';
 
+import { parseDicomFiles } from './features/dicom/parseDicomFiles.js';
 import { uploadAndInferDicomBundle } from './features/upload/uploadAndInferDicomBundle.js';
 
 import { LassoEditor } from './features/editor/lassoEditor.js';
@@ -98,20 +99,41 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
 }
 
 const status = document.getElementById('status');
+const meshListEl = document.getElementById('meshList');
 
 let meshes = [];
 
 export async function handleDicomFiles(fileList) {
+  if (!fileList || fileList.length === 0) return null;
+  if (meshListEl) {
+    meshListEl.innerHTML = '';
+  }
+  return parseDicomFiles(fileList);
+}
+
+export async function handleConvertTo3D(fileList) {
+  console.log("filesForConvert:", fileList);
+  if (!fileList || fileList.length === 0) {
+    status.textContent = '❌ 변환할 DICOM 파일을 먼저 선택하세요.';
+    return;
+  }
+
   try {
-    const { niiUrl, nrrdUrl } = await uploadAndInferDicomBundle(
+    status.textContent = '3D 변환 요청 중...';
+    const { niiUrl: convertedNiiUrl, nrrdUrl } = await uploadAndInferDicomBundle(
       fileList,
       buildApiUrl('/infer-dicom-bundle'),
-      (msg) => status.textContent = msg
+      (msg) => {
+        status.textContent = msg;
+      }
     );
-    meshes = await renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls, lassoEditor);
+
+    meshes = await renderVolumeMeshAndSlices(convertedNiiUrl, nrrdUrl, scene, camera, renderer, controls);
+    niiUrl = convertedNiiUrl;
+    status.textContent = '✅ 3D 변환 및 로드 완료';
   } catch (err) {
     console.error(err);
-    status.textContent = `❌ 오류: ${err.message}`;
+    status.textContent = `❌ 변환 오류: ${err.message}`;
   }
 }
 
