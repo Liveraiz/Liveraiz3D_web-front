@@ -134,6 +134,45 @@ export async function createTopLeftFromAnotherView(niiVue) {
   return leftTopPlane;
 }
 
+// load volumne image to axial view (leftTop)
+// The axial view shows horizontal cross-sections through the volume, 
+// as if looking down from above. This is the traditional 
+// "slice-by-slice" view familiar from CT and MRI scans.
+export async function loadVolumeImageToAxial(niiImage) {
+  const leftTopPlane = new niivue.Niivue({
+    sliceType: niivue.SLICE_TYPE.AXIAL,
+    backColor: [0, 0, 0, 1],
+    dragAndDropEnabled: false,
+    isOrientCube: true,
+  });
+
+  await leftTopPlane.attachTo("leftTop");
+
+  leftTopPlane.addVolume(niiImage);
+  leftTopPlane.setRadiologicalConvention(true);
+  return leftTopPlane;
+}
+
+export async function loadVolumeImageToCoronalAndSagittal(niiImage) {
+  const nvMulti = new niivue.Niivue({
+    sliceType: niivue.SLICE_TYPE.MULTIPLANE,
+    backColor: [0, 0, 0, 1],
+    dragAndDropEnabled: false,
+    isOrientCube: true,
+  });
+
+  const customLayout = [
+    { sliceType: niivue.SLICE_TYPE.CORONAL, position: [0.0, 0, 0.5, 1.0] },
+    { sliceType: niivue.SLICE_TYPE.SAGITTAL, position: [0.5, 0, 0.5, 1.0] },
+  ];
+
+  nvMulti.setCustomLayout(customLayout);
+  await nvMulti.attachTo("canvasTop");
+  
+  await nvMulti.addVolume(niiImage);
+  return nvMulti;
+}
+
 export async function showTopVolumeOnly(volumeView) {
   const nvRender = new niivue.Niivue({
     sliceType: niivue.SLICE_TYPE.RENDER,

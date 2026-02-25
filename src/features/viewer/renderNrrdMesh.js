@@ -3,6 +3,22 @@ import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { labelColorMap, labelNameMap } from "../viewer/colorMaps.js";
 
+/**
+ * Convert a segmentation NRRD blob to labeled Three.js meshes via backend.
+ *
+ * Coordinate contract (inferred from current client code):
+ * - Vertices are consumed exactly as provided in backend OBJ (`item.objData`).
+ * - This function does not apply per-mesh transform (`position/rotation/scale`) or
+ *   a shared world matrix; returned meshes stay in OBJ/local coordinates.
+ * - Callers currently add meshes directly to scene root, so alignment between meshes
+ *   relies on backend exporting all labels in one shared frame.
+ * - Exact medical frame metadata (LPS/RAS, unit, affine) is not included in this
+ *   response contract; downstream code that maps mesh<->volume may require extra
+ *   correction logic.
+ *
+ * @param {Blob} nrrdBlob - Segmentation labelmap NRRD payload.
+ * @returns {Promise<THREE.Mesh[]>} Labeled meshes in backend-exported shared coordinates.
+ */
 export async function generateMeshFromNrrdBlob(nrrdBlob)
 {
     // ✅ FormData 구성
@@ -94,19 +110,16 @@ export async function generateMeshFromNrrdBlob(nrrdBlob)
 }
 
 /**
- * 서버에서 NRRD → OBJ 메시 변환 후 JSON 응답을 받아 Three.js 메시로 렌더링
- * @param {THREE.Scene} scene
- * @param {THREE.PerspectiveCamera} camera
- * @param {THREE.WebGLRenderer} renderer
- * @param {string} nrrdBlobUrl - Blob URL (NRRD)
- * @param {number | null} label - 특정 라벨만 요청할 경우
- * @returns {Promise<THREE.Mesh[]>} - 메시 리스트
+ * Request labeled meshes from a segmentation NRRD blob URL.
+ *
+ * Coordinate contract is identical to `generateMeshFromNrrdBlob`:
+ * - Returned meshes are not world-aligned per mesh by this function.
+ * - Meshes are expected to share one backend-defined coordinate frame.
+ *
+ * @param {string} nrrdBlobUrl - Blob URL that resolves to a segmentation labelmap NRRD.
+ * @returns {Promise<THREE.Mesh[]>} Labeled meshes in backend-exported shared coordinates.
  */
-export async function renderNrrdMesh(scene, camera, renderer, nrrdBlobUrl, label = null) {
-    console.log("🚀 renderNrrdMesh 시작");
-    console.log("👉 전달된 nrrdBlobUrl:", nrrdBlobUrl);
-
-    // ✅ Blob URL → Blob 변환
+export async function requestMeshesFromSegmentationNrrdUrl(nrrdBlobUrl) {
     let nrrdBlob;
     try {
         const response = await fetch(nrrdBlobUrl);
@@ -117,6 +130,5 @@ export async function renderNrrdMesh(scene, camera, renderer, nrrdBlobUrl, label
         console.error("❌ Blob URL fetch 실패:", e);
         throw e;
     }
-
     return generateMeshFromNrrdBlob(nrrdBlob);
 }
