@@ -1,4 +1,4 @@
-import { renderNrrdMesh } from './features/viewer/renderNrrdMesh.js';
+import { requestMeshesFromSegmentationNrrdUrl } from './features/viewer/renderNrrdMesh.js';
 import {
   labelColorMap1
 } from './features/viewer/colorMaps.js';
@@ -62,7 +62,7 @@ let {scene, renderer, camera, controls} = initThreeJS(canvas);
 
 export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
   // ✅ 메시 생성 및 threeMeshes 전역 설정
-  const meshes = await renderNrrdMesh(scene, camera, renderer, nrrdUrl);
+  const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl);
 
   initMeshMap(meshes);
   addMeshsToScene(meshes);
@@ -91,8 +91,8 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
   // showVolumeBoundingBox(nvRender.volumes[0], scene, lassoEditor);
   // logVolumeAndMeshStats(nvRender, camera, controls);
-  meshController = new MeshController(meshes, scene, lassoEditor, camera);
-  meshController.buildMeshControllers(bottomView.volumes[1]);
+  // meshController = new MeshController(meshes, scene, lassoEditor, camera);
+  // meshController.buildMeshControllers(bottomView.volumes[1]);
 
   // buildVolumeTable(meshes, bottomView.volumes[1], scene);
   return meshes;

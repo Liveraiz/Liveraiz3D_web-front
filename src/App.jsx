@@ -6,11 +6,21 @@ import { ViewerArea } from './components/ViewerArea.jsx';
 import { DicomFileSelector } from './components/DicomFileSelector.jsx';
 import { LiveraizLogo } from './components/LiveraizLogo.jsx';
 import { ToolBar } from './components/ToolBar.jsx';
+import { Dcm2niix } from '@niivue/dcm2niix'
+
+import {
+  NVImage
+} from "@niivue/niivue";
+
+import {
+  loadVolumeImageToAxial,
+  loadVolumeImageToCoronalAndSagittal
+} from './features/viewer/niiViewer.js'
 
 export default function App() {
   const mainModuleRef = useRef(null);
   const [isTestLoading, setIsTestLoading] = useState(false);
-  const [selectedDicomFiles, setSelectedDicomFiles] = useState([]);
+  const [allDicomFiles, setAllDicomFiles] = useState([]);
   const [isConverting3D, setIsConverting3D] = useState(false);
   const [dicomSummary, setDicomSummary] = useState(null);
   const [isDicomParsing, setIsDicomParsing] = useState(false);
@@ -57,9 +67,41 @@ export default function App() {
     }
   };
 
+  // 로드된 DICOM Series 중 사용자가 선택한 볼륨을 선택했을 때 호출 된다.
+  const handleSlectedSeriesChanged = async (seriesKey) => {
+    setSelectedSeriesKey(seriesKey);
+
+    const selectedSeries = dicomSummary?.series?.find((series) => series.seriesKey === seriesKey);
+    const selectedPaths = new Set(selectedSeries?.filePaths || []);
+    const selectedDicomFiles = (allDicomFiles ?? []).filter((file) =>
+      selectedPaths.has(file.webkitRelativePath || file.name)
+    );
+
+
+    console.log('selectedDicomFiles', selectedDicomFiles);
+
+    try {
+      const dcm2niix = new Dcm2niix();
+      await dcm2niix.init();
+      const resultFileList = await dcm2niix.input(selectedDicomFiles).run();
+      console.log('dcm2niix result', resultFileList);
+
+      // Create NiiImage from the converted nifti file.
+      // assume second of array is .nii file
+      const image = await NVImage.loadFromFile({file: resultFileList[1]}); 
+      const topLeft = await loadVolumeImageToAxial(image);
+      const bottomView = await loadVolumeImageToCoronalAndSagittal(image);
+
+      bottomView.broadcastTo([topLeft], { "2d": true, "3d": true });
+      topLeft.broadcastTo([bottomView], { "2d": true, "3d": true });
+    } catch (err) {
+      console.error('dcm2niix worker load/convert failed:', err);
+    }
+  }
+
   const handleDicomInput = async (files) => {
     const normalizedFiles = Array.from(files || []);
-    setSelectedDicomFiles(normalizedFiles);
+    setAllDicomFiles(normalizedFiles);
     setDicomParseError('');
 
     const mod = mainModuleRef.current;
@@ -98,11 +140,11 @@ export default function App() {
   };
 
   const handle3DConvert = async () => {
-    const mod = mainModuleRef.current;
-    if (!mod?.handleConvertTo3D) return;
+    const appController = mainModuleRef.current;
+    if (!appController?.handleConvertTo3D) return;
     const statusEl = document.getElementById('status');
 
-    let filesForConvert = selectedDicomFiles;
+    let filesForConvert = allDicomFiles;
     if (dicomSummary?.series?.length > 0) {
       if (!selectedSeriesKey) {
         statusEl && (statusEl.textContent = '❌ 변환할 Volume을 먼저 선택하세요.');
@@ -113,7 +155,7 @@ export default function App() {
       console.log(filesForConvert);
       console.log(selectedSeries);
       const selectedPaths = new Set(selectedSeries?.filePaths || []);
-      const filteredFiles = selectedDicomFiles.filter((file) =>
+      const filteredFiles = allDicomFiles.filter((file) =>
         selectedPaths.has(file.webkitRelativePath || file.name)
       );
 
@@ -126,9 +168,9 @@ export default function App() {
     }
 
     try {
-      setIsConverting3D(true);
+      setIsConverting3D(true); 
       console.log("🚀 3D 변환 핸들러 호출, 파일 수:", filesForConvert.length, filesForConvert);
-      await mod.handleConvertTo3D(filesForConvert);
+      await appController.handleConvertTo3D(filesForConvert);
     } finally {
       setIsConverting3D(false);
     }
@@ -161,7 +203,7 @@ export default function App() {
           <IconButton
             id="convert3dBtn"
             onClick={handle3DConvert}
-            disabled={isConverting3D || isDicomParsing || selectedDicomFiles.length === 0}
+            disabled={isConverting3D || isDicomParsing || allDicomFiles.length === 0}
           >
             {isConverting3D ? '변환 중...' : '3D변환'}
           </IconButton>
@@ -184,7 +226,7 @@ export default function App() {
           isDicomParsing={isDicomParsing}
           dicomParseError={dicomParseError}
           selectedSeriesKey={selectedSeriesKey}
-          onSelectSeries={setSelectedSeriesKey}
+          onSelectSeries={handleSlectedSeriesChanged}
         />
         <ViewerArea />
       </div>
