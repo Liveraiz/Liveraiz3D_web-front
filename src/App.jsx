@@ -13,8 +13,8 @@ import {
 } from "@niivue/niivue";
 
 import {
-  loadVolumeImageToAxial,
-  loadVolumeImageToCoronalAndSagittal
+  setVolumeImageToAxialView,
+  setVolumeImageToCoronalAndSagittalView
 } from './features/viewer/niiViewer.js'
 
 export default function App() {
@@ -26,6 +26,8 @@ export default function App() {
   const [isDicomParsing, setIsDicomParsing] = useState(false);
   const [dicomParseError, setDicomParseError] = useState('');
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('');
+  const [selectedNiftiFile, setSelectedNiftiFile] = useState(null);
+
 
   useEffect(() => {
     // Run existing imperative setup after the DOM is mounted
@@ -77,20 +79,21 @@ export default function App() {
       selectedPaths.has(file.webkitRelativePath || file.name)
     );
 
-
-    console.log('selectedDicomFiles', selectedDicomFiles);
-
     try {
       const dcm2niix = new Dcm2niix();
       await dcm2niix.init();
       const resultFileList = await dcm2niix.input(selectedDicomFiles).run();
       console.log('dcm2niix result', resultFileList);
 
+      const niftiFile = resultFileList.find((f) => /\.nii(\.gz)?$/i.test(f.name));
+      if (!niftiFile) throw new Error('NIfTI 결과 파일이 없습니다.');
+      setSelectedNiftiFile(niftiFile);
+
       // Create NiiImage from the converted nifti file.
       // assume second of array is .nii file
-      const image = await NVImage.loadFromFile({file: resultFileList[1]}); 
-      const topLeft = await loadVolumeImageToAxial(image);
-      const bottomView = await loadVolumeImageToCoronalAndSagittal(image);
+      const image = await NVImage.loadFromFile({file: niftiFile}); 
+      const topLeft = await setVolumeImageToAxialView(image);
+      const bottomView = await setVolumeImageToCoronalAndSagittalView(image);
 
       bottomView.broadcastTo([topLeft], { "2d": true, "3d": true });
       topLeft.broadcastTo([bottomView], { "2d": true, "3d": true });
@@ -141,39 +144,12 @@ export default function App() {
 
   const handle3DConvert = async () => {
     const appController = mainModuleRef.current;
-    if (!appController?.handleConvertTo3D) return;
-    const statusEl = document.getElementById('status');
-
-    let filesForConvert = allDicomFiles;
-    if (dicomSummary?.series?.length > 0) {
-      if (!selectedSeriesKey) {
-        statusEl && (statusEl.textContent = '❌ 변환할 Volume을 먼저 선택하세요.');
-        return;
-      }
-
-      const selectedSeries = dicomSummary.series.find((series) => series.seriesKey === selectedSeriesKey);
-      console.log(filesForConvert);
-      console.log(selectedSeries);
-      const selectedPaths = new Set(selectedSeries?.filePaths || []);
-      const filteredFiles = allDicomFiles.filter((file) =>
-        selectedPaths.has(file.webkitRelativePath || file.name)
-      );
-
-      console.log('filteredFiles',filteredFiles);
-      if (filteredFiles.length === 0) {
-        statusEl && (statusEl.textContent = '❌ 선택된 Volume에 해당하는 파일을 찾지 못했습니다.');
-        return;
-      }
-      filesForConvert = filteredFiles;
+    if (!selectedNiftiFile) {
+      const statusEl = document.getElementById('status');
+      statusEl && (statusEl.textContent = '❌ 먼저 phase를 선택해 NIfTI를 생성하세요.');
+      return;
     }
-
-    try {
-      setIsConverting3D(true); 
-      console.log("🚀 3D 변환 핸들러 호출, 파일 수:", filesForConvert.length, filesForConvert);
-      await appController.handleConvertTo3D(filesForConvert);
-    } finally {
-      setIsConverting3D(false);
-    }
+    await appController.handleConvertNiftiTo3D(selectedNiftiFile);
   };
 
   return (

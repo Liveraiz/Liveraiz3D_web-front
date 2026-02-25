@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { UndoManager } from './undoManager.js';
 import { generateMeshFromNrrdBlob } from '../viewer/renderNrrdMesh.js';
 import { serialize } from "./nrrd.js";
-import {computeLabelVolumesDict} from '../viewer/niiViewer.js';
+
 
 export class LassoEditor {
     constructor(canvas, camera, renderer, scene, controls, nvRender = null, nvMulti = null) {

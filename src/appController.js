@@ -4,7 +4,10 @@ import {
 } from './features/viewer/colorMaps.js';
 
 import { parseDicomFiles } from './features/dicom/parseDicomFiles.js';
-import { uploadAndInferDicomBundle } from './features/upload/uploadAndInferDicomBundle.js';
+import { 
+  uploadAndInferDicomBundle,
+  uploadAndInferNiftiBundle
+ } from './features/upload/uploadAndInferDicomBundle.js';
 
 import { LassoEditor } from './features/editor/lassoEditor.js';
 
@@ -23,18 +26,27 @@ import {
 } from './features/meshControlTable.js';
 
 import {
-  showMultiVolumeView,
+  addVolumesToBottomView,
   createTopLeftFromAnotherView,
-  showTopVolumeOnly
+  showTopVolumeOnly,
+  setSegmentationMaskToAxialView,
+  setSegmentationMaskToCoronalAndSagittalView
 } from './features/viewer/niiViewer.js'
 
 import {
   activateMaskEdit
 } from './features/editor/maskEditor.js'
 
+import {
+  NVImage,
+  cmapper
+} from "@niivue/niivue";
+
+import {computeLabelVolumesDict} from './features/viewer/niiViewer.js';
+
 // ✅ API 엔드포인트 설정 (기본: localhost 개발 서버)
-const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
-// const DEFAULT_API_BASE = 'http://localhost:5051';
+// const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
+const DEFAULT_API_BASE = 'http://localhost:5051';
 const API_BASE = (window.NIIVUE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 const buildApiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 window.NIIVUE_API_BASE = API_BASE;
@@ -60,6 +72,29 @@ let niiUrl = null;
 let {scene, renderer, camera, controls} = initThreeJS(canvas);
 // loadTestVolumes();
 
+function makeNiivueColormapFromLabelColorMap(labelColorMap) {
+  const I = [], R = [], G = [], B = [], A = [];
+
+  for (let i = 0; i <= 255; i++) {
+    I.push(i);
+    if (labelColorMap[i]) {
+      const [r, g, b, a] = labelColorMap[i];
+      R.push(r);
+      G.push(g);
+      B.push(b);
+      A.push(a);
+    } else {
+      R.push(0);
+      G.push(0);
+      B.push(0);
+      A.push(0);
+    }
+  }
+
+  console.log("🧩 완성된 Colormap:", { I, R: R.slice(0, 16), G: G.slice(0, 16), B: B.slice(0, 16), A: A.slice(0, 16) });
+  return { I, R, G, B, A };
+}
+
 export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
   // ✅ 메시 생성 및 threeMeshes 전역 설정
   const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl);
@@ -68,7 +103,42 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
 
-  const bottomView = await showMultiVolumeView(niiUrl, nrrdUrl, labelColorMap1);
+    // ✅ 서버 색상 기반 Niivue colormap 생성
+  const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+  cmapper.addColormap("seg", segCmap);
+
+  // ✅ 최대 라벨 값 계산
+  const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+  const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
+
+  const niiImage = await NVImage.loadFromUrl({
+    url: niiUrl, 
+    name: "CT.nii.gz",
+    colormap: "gray",
+    opacity: 1,
+    visible: true
+  });
+
+  const nrrdImage = await NVImage.loadFromUrl({
+    url: nrrdUrl,
+    name: "Seg.nrrd",
+    colormap: "seg",       // ✅ 커스텀 컬러맵
+    indexedColors: true,
+    cal_min: labelLUT.min,
+    cal_max: labelLUT.max,
+    opacity: 0.8,
+    alphaThreshold: 0.0,
+    visible: true,
+  });
+
+  nrrdImage.lut = labelLUT.lut;
+  nrrdImage.cal_min = labelLUT.min;
+  nrrdImage.cal_max = labelLUT.max;
+
+  const result = computeLabelVolumesDict(nrrdImage);
+  console.log("Volumes: ", result);
+
+  const bottomView = await addVolumesToBottomView(niiImage, nrrdImage);
   nvMulti = bottomView;
   
   if (!bottomView || bottomView.volumes.length < 2) {
@@ -77,7 +147,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
     console.log("✅ 볼륨 로드 완료:", bottomView.volumes.map(v => v.name));
   }
 
-  const topLeftView = await createTopLeftFromAnotherView(bottomView);
+  const topLeftView = await createTopLeftFromAnotherView(niiImage, nrrdImage);
   bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
   topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
 
@@ -91,10 +161,8 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   // 볼륨의 공간상의 위치가 잘 되어있는지 확인을 위한 바운딩 박스
   // showVolumeBoundingBox(nvRender.volumes[0], scene, lassoEditor);
   // logVolumeAndMeshStats(nvRender, camera, controls);
-  // meshController = new MeshController(meshes, scene, lassoEditor, camera);
-  // meshController.buildMeshControllers(bottomView.volumes[1]);
-
-  // buildVolumeTable(meshes, bottomView.volumes[1], scene);
+  meshController = new MeshController(meshes, scene, lassoEditor, camera);
+  meshController.buildMeshControllers(bottomView.volumes[1]);
   return meshes;
 }
 
@@ -110,6 +178,44 @@ export async function handleDicomFiles(fileList) {
   }
   return parseDicomFiles(fileList);
 }
+
+export async function handleConvertNiftiTo3D(niftiFile) {
+  const nrrdUrl = await uploadAndInferNiftiBundle(
+    niftiFile,
+    buildApiUrl('/infer-nifti-bundle'),
+    (msg) => { status.textContent = msg; }
+  );
+  console.log("✅ NRRD URL:", nrrdUrl);
+
+  // ✅ 서버 색상 기반 Niivue colormap 생성
+  const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+  cmapper.addColormap("seg", segCmap);
+
+  // ✅ 최대 라벨 값 계산
+  const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+  const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
+
+
+  const nrrdImage = await NVImage.loadFromUrl({
+    url: nrrdUrl,
+    name: "Seg.nrrd",
+    colormap: "seg",       // ✅ 커스텀 컬러맵
+    indexedColors: true,
+    cal_min: labelLUT.min,
+    cal_max: labelLUT.max,
+    opacity: 0.8,
+    alphaThreshold: 0.0,
+    visible: true,
+  });
+  nrrdImage.lut = labelLUT.lut;
+  nrrdImage.cal_min = labelLUT.min;
+  nrrdImage.cal_max = labelLUT.max;
+
+  
+  setSegmentationMaskToAxialView(nrrdImage);
+  setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
+}
+
 
 export async function handleConvertTo3D(fileList) {
   console.log("filesForConvert:", fileList);
