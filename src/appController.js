@@ -95,13 +95,18 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   return { I, R, G, B, A };
 }
 
-export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
-  // ✅ 메시 생성 및 threeMeshes 전역 설정
+export async function renderMeshFromNrrdUrl(nrrdUrl) {
   const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl);
-
   initMeshMap(meshes);
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
+  animate(controls, renderer, scene, camera);
+
+  return meshes;
+}
+
+export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
+  const meshes = await renderMeshFromNrrdUrl(nrrdUrl);
 
     // ✅ 서버 색상 기반 Niivue colormap 생성
   const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
@@ -151,7 +156,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
   topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
 
-  animate(controls, renderer, scene, camera);
+  
   const nvRender = await showTopVolumeOnly(bottomView);
 
   lassoEditor.setRenderInstance(nvRender);
@@ -211,9 +216,10 @@ export async function handleConvertNiftiTo3D(niftiFile) {
   nrrdImage.cal_min = labelLUT.min;
   nrrdImage.cal_max = labelLUT.max;
 
-  
   setSegmentationMaskToAxialView(nrrdImage);
   setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
+
+  renderMeshFromNrrdUrl(nrrdUrl);
 }
 
 

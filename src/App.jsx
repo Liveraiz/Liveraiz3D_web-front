@@ -181,7 +181,7 @@ export default function App() {
             onClick={handle3DConvert}
             disabled={isConverting3D || isDicomParsing || allDicomFiles.length === 0}
           >
-            {isConverting3D ? '변환 중...' : '3D변환'}
+            {isConverting3D ? '변환 중...' : 'Auto-Segmentation'}
           </IconButton>
           <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
             진행 중 없음
