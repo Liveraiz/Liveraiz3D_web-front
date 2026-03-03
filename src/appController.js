@@ -45,8 +45,8 @@ import {
 import {computeLabelVolumesDict} from './features/viewer/niiViewer.js';
 
 // ✅ API 엔드포인트 설정 (기본: localhost 개발 서버)
-// const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
-const DEFAULT_API_BASE = 'http://localhost:5051';
+const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
+// const DEFAULT_API_BASE = 'http://localhost:5051';
 const API_BASE = (window.NIIVUE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 const buildApiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 window.NIIVUE_API_BASE = API_BASE;
@@ -95,13 +95,18 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   return { I, R, G, B, A };
 }
 
-export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
-  // ✅ 메시 생성 및 threeMeshes 전역 설정
+export async function renderMeshFromNrrdUrl(nrrdUrl) {
   const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl);
-
   initMeshMap(meshes);
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
+  animate(controls, renderer, scene, camera);
+
+  return meshes;
+}
+
+export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
+  const meshes = await renderMeshFromNrrdUrl(nrrdUrl);
 
     // ✅ 서버 색상 기반 Niivue colormap 생성
   const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
@@ -151,7 +156,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   bottomView.broadcastTo([topLeftView], { "2d": true, "3d": true });
   topLeftView.broadcastTo([bottomView], { "2d": true, "3d": true });
 
-  animate(controls, renderer, scene, camera);
+  
   const nvRender = await showTopVolumeOnly(bottomView);
 
   lassoEditor.setRenderInstance(nvRender);
@@ -179,9 +184,10 @@ export async function handleDicomFiles(fileList) {
   return parseDicomFiles(fileList);
 }
 
-export async function handleConvertNiftiTo3D(niftiFile) {
+export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
   const nrrdUrl = await uploadAndInferNiftiBundle(
     niftiFile,
+    segmentationModel,
     buildApiUrl('/infer-nifti-bundle'),
     (msg) => { status.textContent = msg; }
   );
@@ -211,9 +217,10 @@ export async function handleConvertNiftiTo3D(niftiFile) {
   nrrdImage.cal_min = labelLUT.min;
   nrrdImage.cal_max = labelLUT.max;
 
-  
   setSegmentationMaskToAxialView(nrrdImage);
   setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
+
+  renderMeshFromNrrdUrl(nrrdUrl);
 }
 
 

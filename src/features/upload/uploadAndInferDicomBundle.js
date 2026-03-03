@@ -78,7 +78,7 @@ export async function uploadAndInferDicomBundle(fileList, endpoint, onStatus) {
     return { niiUrl, nrrdUrl };
 }
 
-export async function uploadAndInferNiftiBundle(niftiFile, endpoint, onStatus) {
+export async function uploadAndInferNiftiBundle(niftiFile, segmentationModel, endpoint, onStatus) {
     if (!(niftiFile instanceof File)) {
         throw new Error("niftiFile은 File 객체여야 합니다.");
     }
@@ -87,8 +87,14 @@ export async function uploadAndInferNiftiBundle(niftiFile, endpoint, onStatus) {
 
     const formData = new FormData();
     formData.append('niftiFile', niftiFile, niftiFile.name);
+    if (segmentationModel) {
+        formData.append('segmentationModel', segmentationModel);
+    }
 
     console.log("🚀 POST 요청 준비 중...", endpoint);
+    if (segmentationModel) {
+        console.log("🧠 선택된 Segmentation Model:", segmentationModel);
+    }
     const res = await fetch(endpoint, {
         method: "POST",
         body: formData

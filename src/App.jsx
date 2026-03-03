@@ -19,6 +19,17 @@ import {
 
 export default function App() {
   const mainModuleRef = useRef(null);
+  const segmentationModels = [
+    'HCC-CT-PP30',
+    'HCC-MR20min',
+    'HCC-MRPP',
+    'LDLT-MRCP3Dgrase',
+    'LDLT-Recip70',
+    'PDAC-Pancreas',
+    'PS-Flap100',
+    'Kidney-CT-AP',
+    'Liver-PV-5section',
+  ];
   const [isTestLoading, setIsTestLoading] = useState(false);
   const [allDicomFiles, setAllDicomFiles] = useState([]);
   const [isConverting3D, setIsConverting3D] = useState(false);
@@ -27,6 +38,7 @@ export default function App() {
   const [dicomParseError, setDicomParseError] = useState('');
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('');
   const [selectedNiftiFile, setSelectedNiftiFile] = useState(null);
+  const [selectedSegmentationModel, setSelectedSegmentationModel] = useState(segmentationModels[0]);
 
 
   useEffect(() => {
@@ -149,7 +161,7 @@ export default function App() {
       statusEl && (statusEl.textContent = '❌ 먼저 phase를 선택해 NIfTI를 생성하세요.');
       return;
     }
-    await appController.handleConvertNiftiTo3D(selectedNiftiFile);
+    await appController.handleConvertNiftiTo3D(selectedNiftiFile, selectedSegmentationModel);
   };
 
   return (
@@ -176,12 +188,36 @@ export default function App() {
             🎯 부분
           </IconButton>
           <DicomFileSelector onChange={(files) => handleDicomInput(files)} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 8, color: '#ccc', fontSize: 13 }}>
+            Segmentation Model:
+            <select
+              id="segmentationModelSelect"
+              value={selectedSegmentationModel}
+              onChange={(event) => setSelectedSegmentationModel(event.target.value)}
+              style={{
+                minWidth: 180,
+                height: 34,
+                background: '#1a1a1a',
+                color: '#fff',
+                border: '1px solid #555',
+                borderRadius: 6,
+                padding: '8px 8px',
+                marginRight: 8,
+              }}
+            >
+              {segmentationModels.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </label>
           <IconButton
             id="convert3dBtn"
             onClick={handle3DConvert}
             disabled={isConverting3D || isDicomParsing || allDicomFiles.length === 0}
           >
-            {isConverting3D ? '변환 중...' : '3D변환'}
+            {isConverting3D ? '변환 중...' : 'Auto-Segment'}
           </IconButton>
           <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
             진행 중 없음
