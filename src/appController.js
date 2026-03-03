@@ -30,7 +30,9 @@ import {
   createTopLeftFromAnotherView,
   showTopVolumeOnly,
   setSegmentationMaskToAxialView,
-  setSegmentationMaskToCoronalAndSagittalView
+  setSegmentationMaskToCoronalAndSagittalView,
+  getTopLeftView,
+  getBottomView
 } from './features/viewer/niiViewer.js'
 
 import {
@@ -101,7 +103,6 @@ export async function renderMeshFromNrrdUrl(nrrdUrl) {
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
   animate(controls, renderer, scene, camera);
-
   return meshes;
 }
 
@@ -167,6 +168,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   // showVolumeBoundingBox(nvRender.volumes[0], scene, lassoEditor);
   // logVolumeAndMeshStats(nvRender, camera, controls);
   meshController = new MeshController(meshes, scene, lassoEditor, camera);
+  meshController.setRenderer(renderer);
   meshController.buildMeshControllers(bottomView.volumes[1]);
   return meshes;
 }
@@ -201,7 +203,6 @@ export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
   const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
   const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
-
   const nrrdImage = await NVImage.loadFromUrl({
     url: nrrdUrl,
     name: "Seg.nrrd",
@@ -220,7 +221,18 @@ export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
   setSegmentationMaskToAxialView(nrrdImage);
   setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
 
-  renderMeshFromNrrdUrl(nrrdUrl);
+  const meshes = await renderMeshFromNrrdUrl(nrrdUrl);
+
+  const topLeftView = getTopLeftView();
+  const bottomView = getBottomView();
+  const nvRender = await showTopVolumeOnly(bottomView);
+
+  lassoEditor.setRenderInstance(renderer);
+  lassoEditor.setMultiInstance(bottomView);
+  lassoEditor.setTopLeftView(topLeftView);
+
+  meshController = new MeshController(meshes, scene, lassoEditor, camera);
+  meshController.buildMeshControllers(nrrdImage);
 }
 
 

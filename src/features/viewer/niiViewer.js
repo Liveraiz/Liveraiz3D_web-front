@@ -88,6 +88,14 @@ export async function setSegmentationMaskToAxialView(nrrdImage) {
   return topLeftView;
 }
 
+export function getTopLeftView() {
+  return topLeftView;
+}
+
+export function getBottomView() {
+  return bottomView;
+}
+
 export async function setSegmentationMaskToCoronalAndSagittalView(nrrdImage) {
   if (!bottomView) {
     bottomView = await initBottomView();

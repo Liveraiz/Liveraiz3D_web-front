@@ -130,5 +130,5 @@ export async function requestMeshesFromSegmentationNrrdUrl(nrrdBlobUrl) {
         console.error("❌ Blob URL fetch 실패:", e);
         throw e;
     }
-    return generateMeshFromNrrdBlob(nrrdBlob);
+    return await generateMeshFromNrrdBlob(nrrdBlob);
 }

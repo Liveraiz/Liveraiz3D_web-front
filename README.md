@@ -8,3 +8,12 @@ An immersive 3D surgical space for planning and training.
 + Slice and analyze 3D surgical subject
 + AI-based Surgical Outcome Prediction
 + Edit segmentation
+
+### Build bundle for Production
+```
+# Build
+npm run build
+
+# Test for example 7070
+npx serve -s dist -l 7070
+```

@@ -34,6 +34,11 @@ export class MeshController {
     this.scene = scene;
     this.camera = camera;
     this.selectedMesh = null;
+    this.renderer = null;
+  }
+
+  setRenderer(renderer) {
+    this.renderer = renderer;
   }
 
   buildMeshControllers(volume) {
@@ -183,7 +188,7 @@ export class MeshController {
       e.stopPropagation();
       targetMesh.visible = !targetMesh.visible;
       updateIcon();
-      renderer.render(this.scene, this.camera);
+      this.renderer.render(this.scene, this.camera);
     };
 
     updateIcon();
