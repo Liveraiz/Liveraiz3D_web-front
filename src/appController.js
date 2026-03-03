@@ -184,9 +184,10 @@ export async function handleDicomFiles(fileList) {
   return parseDicomFiles(fileList);
 }
 
-export async function handleConvertNiftiTo3D(niftiFile) {
+export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
   const nrrdUrl = await uploadAndInferNiftiBundle(
     niftiFile,
+    segmentationModel,
     buildApiUrl('/infer-nifti-bundle'),
     (msg) => { status.textContent = msg; }
   );
