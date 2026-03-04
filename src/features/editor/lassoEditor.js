@@ -1258,10 +1258,6 @@ export class LassoEditor {
             return;
         }
 
-        // console.log(`📦 현재 LUT 길이: ${segVolume.lut.length}`);
-        // console.log(`📦 LUT 타입: ${segVolume.lut.constructor.name}`);
-        // console.log(`📦 LUT 처음 값: [${Array.from(segVolume.lut.slice(0, 16)).join(', ')}]`);
-
         // ✅ 1. LUT 확장 필요 여부 확인
         const maxLabel = Math.max(...Object.keys(colorMapping).map(Number));
         const requiredSize = (maxLabel + 1) * 4;
@@ -1297,12 +1293,6 @@ export class LassoEditor {
             segVolume.lut[lutIndex + 1] = Math.round(color[1] * 255);
             segVolume.lut[lutIndex + 2] = Math.round(color[2] * 255);
             segVolume.lut[lutIndex + 3] = 255; // Alpha
-
-            const labelName = nameMapping[labelNum] || `Label ${labelNum}`;
-            // console.log(`✅ 라벨 ${labelNum} (${labelName}): RGB(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`);
-            // console.log(`   이전: RGBA(${oldRGBA.join(', ')})`);
-            // console.log(`   이후: RGBA(${segVolume.lut[lutIndex]}, ${segVolume.lut[lutIndex + 1]}, ${segVolume.lut[lutIndex + 2]}, ${segVolume.lut[lutIndex + 3]})`);
-
             updatedCount++;
         }
 

@@ -38,8 +38,7 @@
   width: 100%;
   height: 100%;
   display: block;
-  background-color: gray;
-  border-color: red;
+  background-color: black;
   border-style: solid;
 }
 
@@ -250,7 +249,6 @@ header {
 #topHalf {
   display: flex;
   flex-direction: column;
-  border-color: red;
   border-style: solid;
 }
 
@@ -258,8 +256,8 @@ header {
   flex: 1;
   display: flex;
   flex-direction: column;
-  border-color: red;
   border-style: solid;
+  border-width: 0px;
 }
 
 #threeCanvas {
@@ -267,6 +265,7 @@ header {
   z-index: 1;
   width: 100%;
   height: 100%;
+  background-color: black;
   display: flex;
 }
 
@@ -341,6 +340,50 @@ header #status {
   font-size: 14px;
   color: white;
   margin-left: 12px;
+}
+
+.status-indicator {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 220px;
+  margin-left: 12px;
+}
+
+.status-indicator #status {
+  margin-left: 0;
+}
+
+.status-progress {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.status-progress-bar {
+  position: absolute;
+  top: 0;
+  left: -35%;
+  width: 35%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #4aa3ff 0%, #9cd1ff 100%);
+  animation: status-progress-slide 1.1s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(74, 163, 255, 0.45);
+}
+
+@keyframes status-progress-slide {
+  from {
+    left: -35%;
+  }
+
+  to {
+    left: 100%;
+  }
 }
 
 #volumeTableContent table {

@@ -1,18 +1,3 @@
-const label_name_mapping = {
-  1: "Liver",
-  2: "Rt.lobe",
-  3: "RAS",
-  4: "RPS",
-  5: "Lt.lobe",
-  6: "LLS",
-  7: "LMS",
-  8: "Spigelian",
-  9: "PV",
-  10: "HV",
-  11: "Cancer",
-  12: "BD"
-}
-
 import {
   createLeftLabelSection,
   createVolumeValues
@@ -21,6 +6,10 @@ import {
 import {
   computeLabelVolumesDict 
 } from './viewer/niiViewer.js';
+
+import {
+  getLabelMapByModel
+} from './viewer/colorMaps.js';
 
 import * as THREE from "three";
 
@@ -41,7 +30,7 @@ export class MeshController {
     this.renderer = renderer;
   }
 
-  buildMeshControllers(volume) {
+  buildMeshControllers(volume, modelName) {
     const meshListDiv = document.getElementById('meshList');
     meshListDiv.innerHTML = '';
 
@@ -57,14 +46,16 @@ export class MeshController {
       const labelKey = parseInt(mesh.userData.label);
       const computedVolume = volumeValues[labelKey];
 
-      const row = this.createMeshRowWithControls(mesh, computedVolume);
+      const row = this.createMeshRowWithControls(mesh, computedVolume, modelName);
       meshListDiv.appendChild(row);
     });
   }
 
-  createMeshRowWithControls(mesh, computedVolumes) {
+  createMeshRowWithControls(mesh, computedVolumes, modelName) {
     const labelValue = mesh.label || mesh.userData?.label;
-    const labelText = label_name_mapping[labelValue] || `Label ${labelValue}`;
+    const labelMap = getLabelMapByModel(modelName);
+    const labelText = labelMap[labelValue] || `Label ${labelValue}`;
+    console.log('labelText', labelText);
     const row = document.createElement('div');
 
     row.classList.add('mesh-row');
@@ -144,6 +135,8 @@ export class MeshController {
     valueText.style.textAlign = 'right';
 
     slider.oninput = (e) => {
+      console.log("🎛️ Opacity slider changed:", dataset.label);
+      console.log("🎛️ Slider value:", e.target.value);
       const targetMesh = getMeshByLabel(dataset.label);
       const val = parseFloat(e.target.value);
       targetMesh.material.opacity = val;

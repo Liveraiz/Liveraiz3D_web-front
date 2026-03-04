@@ -1,7 +1,6 @@
-// viewer/renderNrrdMesh.js
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { labelColorMap, labelNameMap } from "../viewer/colorMaps.js";
+import { getLabelMapByModel, labelColorMap } from "../viewer/colorMaps.js";
 
 /**
  * Convert a segmentation NRRD blob to labeled Three.js meshes via backend.
@@ -19,8 +18,7 @@ import { labelColorMap, labelNameMap } from "../viewer/colorMaps.js";
  * @param {Blob} nrrdBlob - Segmentation labelmap NRRD payload.
  * @returns {Promise<THREE.Mesh[]>} Labeled meshes in backend-exported shared coordinates.
  */
-export async function generateMeshFromNrrdBlob(nrrdBlob)
-{
+export async function generateMeshFromNrrdBlob(nrrdBlob, modelName) {
     // ✅ FormData 구성
     const formData = new FormData();
     formData.append("file", nrrdBlob, "inferred.nrrd");
@@ -90,9 +88,11 @@ export async function generateMeshFromNrrdBlob(nrrdBlob)
                         });
 
                         child.userData.label = currentLabel;
-                        child.userData.name = labelNameMap[currentLabel] || `Label ${currentLabel}`;
+                        const labelMap = getLabelMapByModel(modelName);
+                        child.userData.name = labelMap[currentLabel] || `Label ${currentLabel}`;
                         child.name = child.userData.name;
                         child.geometry.computeVertexNormals();
+                        console.log("Labeled Mesh: ", child);
 
                         meshes.push(child);
                     }
@@ -106,7 +106,7 @@ export async function generateMeshFromNrrdBlob(nrrdBlob)
     } catch (e) {
         console.error("❌ fetch 또는 메시 생성 실패:", e);
         throw e;
-    } 
+    }
 }
 
 /**
@@ -119,7 +119,7 @@ export async function generateMeshFromNrrdBlob(nrrdBlob)
  * @param {string} nrrdBlobUrl - Blob URL that resolves to a segmentation labelmap NRRD.
  * @returns {Promise<THREE.Mesh[]>} Labeled meshes in backend-exported shared coordinates.
  */
-export async function requestMeshesFromSegmentationNrrdUrl(nrrdBlobUrl) {
+export async function requestMeshesFromSegmentationNrrdUrl(nrrdBlobUrl, modelName) {
     let nrrdBlob;
     try {
         const response = await fetch(nrrdBlobUrl);
@@ -130,5 +130,5 @@ export async function requestMeshesFromSegmentationNrrdUrl(nrrdBlobUrl) {
         console.error("❌ Blob URL fetch 실패:", e);
         throw e;
     }
-    return await generateMeshFromNrrdBlob(nrrdBlob);
+    return await generateMeshFromNrrdBlob(nrrdBlob, modelName);
 }

@@ -156,12 +156,24 @@ export default function App() {
 
   const handle3DConvert = async () => {
     const appController = mainModuleRef.current;
+    const statusEl = document.getElementById('status');
+
     if (!selectedNiftiFile) {
-      const statusEl = document.getElementById('status');
       statusEl && (statusEl.textContent = '❌ 먼저 phase를 선택해 NIfTI를 생성하세요.');
       return;
     }
-    await appController.handleConvertNiftiTo3D(selectedNiftiFile, selectedSegmentationModel);
+
+    try {
+      setIsConverting3D(true);
+      statusEl && (statusEl.textContent = 'Auto-Segmentation 진행 중...');
+      await appController.handleConvertNiftiTo3D(selectedNiftiFile, selectedSegmentationModel);
+      statusEl && (statusEl.textContent = '✅ Auto-Segmentation 완료');
+    } catch (err) {
+      console.error(err);
+      statusEl && (statusEl.textContent = `❌ Auto-Segmentation 오류: ${err.message}`);
+    } finally {
+      setIsConverting3D(false);
+    }
   };
 
   return (
@@ -219,9 +231,21 @@ export default function App() {
           >
             {isConverting3D ? '변환 중...' : 'Auto-Segment'}
           </IconButton>
-          <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
-            진행 중 없음
-          </span>
+          <div className={`status-indicator ${isConverting3D ? 'is-busy' : ''}`}>
+            <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
+              진행 중 없음
+            </span>
+            {isConverting3D && (
+              <div
+                className="status-progress"
+                role="progressbar"
+                aria-label="Auto-Segmentation 진행 중"
+                aria-valuetext="진행률을 계산할 수 없는 처리입니다"
+              >
+                <div className="status-progress-bar" />
+              </div>
+            )}
+          </div>
           <IconButton
             style={{ marginLeft: 8 }}
             onClick={handleTestLoad}

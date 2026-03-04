@@ -47,8 +47,8 @@ import {
 import {computeLabelVolumesDict} from './features/viewer/niiViewer.js';
 
 // ✅ API 엔드포인트 설정 (기본: localhost 개발 서버)
-const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
-// const DEFAULT_API_BASE = 'http://localhost:5051';
+// const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
+const DEFAULT_API_BASE = 'http://localhost:5051';
 const API_BASE = (window.NIIVUE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 const buildApiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 window.NIIVUE_API_BASE = API_BASE;
@@ -97,8 +97,8 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   return { I, R, G, B, A };
 }
 
-export async function renderMeshFromNrrdUrl(nrrdUrl) {
-  const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl);
+export async function renderMeshFromNrrdUrl(nrrdUrl, modelName) {
+  const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl, modelName);
   initMeshMap(meshes);
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
@@ -107,9 +107,10 @@ export async function renderMeshFromNrrdUrl(nrrdUrl) {
 }
 
 export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls) {
-  const meshes = await renderMeshFromNrrdUrl(nrrdUrl);
+  const meshes = await renderMeshFromNrrdUrl(nrrdUrl, 'Liver-PV-5section');
 
     // ✅ 서버 색상 기반 Niivue colormap 생성
+
   const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
   cmapper.addColormap("seg", segCmap);
 
@@ -169,7 +170,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   // logVolumeAndMeshStats(nvRender, camera, controls);
   meshController = new MeshController(meshes, scene, lassoEditor, camera);
   meshController.setRenderer(renderer);
-  meshController.buildMeshControllers(bottomView.volumes[1]);
+  meshController.buildMeshControllers(bottomView.volumes[1], 'Liver-PV-5section');
   return meshes;
 }
 
@@ -187,52 +188,60 @@ export async function handleDicomFiles(fileList) {
 }
 
 export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
-  const nrrdUrl = await uploadAndInferNiftiBundle(
-    niftiFile,
-    segmentationModel,
-    buildApiUrl('/infer-nifti-bundle'),
-    (msg) => { status.textContent = msg; }
-  );
-  console.log("✅ NRRD URL:", nrrdUrl);
+  try {
+    const nrrdUrl = await uploadAndInferNiftiBundle(
+      niftiFile,
+      segmentationModel,
+      buildApiUrl('/infer-nifti-bundle'),
+      (msg) => { status.textContent = msg; }
+    );
+    console.log("✅ NRRD URL:", nrrdUrl);
 
-  // ✅ 서버 색상 기반 Niivue colormap 생성
-  const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
-  cmapper.addColormap("seg", segCmap);
+    // ✅ 서버 색상 기반 Niivue colormap 생성
+    const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+    cmapper.addColormap("seg", segCmap);
 
-  // ✅ 최대 라벨 값 계산
-  const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
-  const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
+    // ✅ 최대 라벨 값 계산
+    const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+    const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
-  const nrrdImage = await NVImage.loadFromUrl({
-    url: nrrdUrl,
-    name: "Seg.nrrd",
-    colormap: "seg",       // ✅ 커스텀 컬러맵
-    indexedColors: true,
-    cal_min: labelLUT.min,
-    cal_max: labelLUT.max,
-    opacity: 0.8,
-    alphaThreshold: 0.0,
-    visible: true,
-  });
-  nrrdImage.lut = labelLUT.lut;
-  nrrdImage.cal_min = labelLUT.min;
-  nrrdImage.cal_max = labelLUT.max;
+    status.textContent = '세그멘테이션 볼륨 로드 중...';
+    const nrrdImage = await NVImage.loadFromUrl({
+      url: nrrdUrl,
+      name: "Seg.nrrd",
+      colormap: "seg",       // ✅ 커스텀 컬러맵
+      indexedColors: true,
+      cal_min: labelLUT.min,
+      cal_max: labelLUT.max,
+      opacity: 0.8,
+      alphaThreshold: 0.0,
+      visible: true,
+    });
+    nrrdImage.lut = labelLUT.lut;
+    nrrdImage.cal_min = labelLUT.min;
+    nrrdImage.cal_max = labelLUT.max;
 
-  setSegmentationMaskToAxialView(nrrdImage);
-  setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
+    setSegmentationMaskToAxialView(nrrdImage);
+    setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
 
-  const meshes = await renderMeshFromNrrdUrl(nrrdUrl);
+    status.textContent = '3D 메쉬 생성 중...';
+    const meshes = await renderMeshFromNrrdUrl(nrrdUrl, segmentationModel);
 
-  const topLeftView = getTopLeftView();
-  const bottomView = getBottomView();
-  const nvRender = await showTopVolumeOnly(bottomView);
+    const topLeftView = getTopLeftView();
+    const bottomView = getBottomView();
+    const nvRender = await showTopVolumeOnly(bottomView);
 
-  lassoEditor.setRenderInstance(renderer);
-  lassoEditor.setMultiInstance(bottomView);
-  lassoEditor.setTopLeftView(topLeftView);
+    lassoEditor.setRenderInstance(renderer);
+    lassoEditor.setMultiInstance(bottomView);
+    lassoEditor.setTopLeftView(topLeftView);
 
-  meshController = new MeshController(meshes, scene, lassoEditor, camera);
-  meshController.buildMeshControllers(nrrdImage);
+    meshController = new MeshController(meshes, scene, lassoEditor, camera);
+    meshController.buildMeshControllers(nrrdImage, segmentationModel);
+    status.textContent = '✅ Auto-Segmentation 완료';
+  } catch (err) {
+    status.textContent = `❌ Auto-Segmentation 오류: ${err.message}`;
+    throw err;
+  }
 }
 
 
