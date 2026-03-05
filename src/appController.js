@@ -27,6 +27,7 @@ import {
 
 import {
   addVolumesToBottomView,
+  clearAllViewerVolumes,
   createTopLeftFromAnotherView,
   showTopVolumeOnly,
   setSegmentationMaskToAxialView,
@@ -99,6 +100,7 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
 
 export async function renderMeshFromNrrdUrl(nrrdUrl, modelName) {
   const meshes = await requestMeshesFromSegmentationNrrdUrl(nrrdUrl, modelName);
+  threeMeshes = meshes;
   initMeshMap(meshes);
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
@@ -229,17 +231,18 @@ export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
     setSegmentationMaskToCoronalAndSagittalView(nrrdImage);
 
     status.textContent = '3D 메쉬 생성 중...';
-    const meshes = await renderMeshFromNrrdUrl(nrrdUrl, segmentationModel);
+    const renderedMeshes = await renderMeshFromNrrdUrl(nrrdUrl, segmentationModel);
+    meshes = renderedMeshes;
 
     const topLeftView = getTopLeftView();
     const bottomView = getBottomView();
     const nvRender = await showTopVolumeOnly(bottomView);
 
-    lassoEditor.setRenderInstance(renderer);
+    lassoEditor.setRenderInstance(nvRender);
     lassoEditor.setMultiInstance(bottomView);
     lassoEditor.setTopLeftView(topLeftView);
 
-    meshController = new MeshController(meshes, scene, lassoEditor, camera);
+    meshController = new MeshController(renderedMeshes, scene, lassoEditor, camera);
     meshController.buildMeshControllers(nrrdImage, segmentationModel);
     status.textContent = '✅ Auto-Segmentation 완료';
   } catch (err) {
@@ -285,6 +288,62 @@ export async function loadTestVolumes() {
   niiUrl = URL.createObjectURL(niiBlob);
 
   meshes = await renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, renderer, controls);
+}
+
+function disposeMesh(mesh) {
+  if (!mesh) return;
+  scene.remove(mesh);
+  if (mesh.geometry?.dispose) {
+    mesh.geometry.dispose();
+  }
+  if (Array.isArray(mesh.material)) {
+    mesh.material.forEach((material) => material?.dispose?.());
+  } else {
+    mesh.material?.dispose?.();
+  }
+}
+
+export async function resetWorkspaceForNewInput() {
+  if (lassoEditor.editMode) {
+    lassoEditor.toggleEditMode(false);
+  }
+
+  lassoEditor.clearPreview?.();
+  lassoEditor.clearEditHighlight?.();
+  lassoEditor.clearLassoPath?.();
+  lassoEditor.resetAllPoints?.();
+  lassoEditor.selectedMesh = null;
+
+  if (editorBtn) {
+    editorBtn.textContent = '✂️ 편집 모드';
+    editorBtn.classList.remove('edit-active');
+  }
+
+  if (scissorIcon) {
+    scissorIcon.style.display = 'none';
+  }
+
+  if (meshController?.boundingBoxHelper) {
+    scene.remove(meshController.boundingBoxHelper);
+    meshController.boundingBoxHelper = undefined;
+  }
+  meshController?.clearAllHighlights?.();
+
+  const allLoadedMeshes = new Set([...(threeMeshes || []), ...(meshes || [])]);
+  allLoadedMeshes.forEach((mesh) => disposeMesh(mesh));
+
+  threeMeshes = [];
+  meshes = [];
+  meshMap = {};
+  selectedMesh = null;
+  meshController = null;
+  nvMulti = null;
+
+  if (meshListEl) {
+    meshListEl.innerHTML = '';
+  }
+
+  await clearAllViewerVolumes();
 }
 
 function initMeshMap(meshes) {

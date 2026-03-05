@@ -118,7 +118,18 @@ export default function App() {
   const handleSlectedSeriesChanged = async (seriesKey, options = {}) => {
     const summarySource = options.summary ?? dicomSummary;
     const filesSource = options.files ?? allDicomFiles;
+    const mod = mainModuleRef.current;
+    const statusEl = document.getElementById('status');
     setSelectedSeriesKey(seriesKey);
+    setSelectedNiftiFile(null);
+
+    try {
+      if (typeof mod?.resetWorkspaceForNewInput === 'function') {
+        await mod.resetWorkspaceForNewInput();
+      }
+    } catch (err) {
+      console.error('workspace reset failed on series change:', err);
+    }
 
     const selectedSeries = summarySource?.series?.find((series) => series.seriesKey === seriesKey);
     if (!selectedSeries) return;
@@ -131,6 +142,7 @@ export default function App() {
     try {
       const dcm2niix = new Dcm2niix();
       await dcm2niix.init();
+      statusEl && (statusEl.textContent = '선택한 Series 로드 중...');
       const resultFileList = await dcm2niix.input(selectedDicomFiles).run();
       console.log('dcm2niix result', resultFileList);
 
@@ -147,8 +159,10 @@ export default function App() {
 
       bottomView.broadcastTo([topLeft], { "2d": true, "3d": true });
       topLeft.broadcastTo([bottomView], { "2d": true, "3d": true });
+      statusEl && (statusEl.textContent = '✅ Series 로드 완료');
     } catch (err) {
       console.error('dcm2niix worker load/convert failed:', err);
+      statusEl && (statusEl.textContent = `❌ Series 로드 실패: ${err.message}`);
     }
   }
 
@@ -156,15 +170,25 @@ export default function App() {
     const normalizedFiles = Array.from(files || []);
     setAllDicomFiles(normalizedFiles);
     setDicomParseError('');
+    setSelectedNiftiFile(null);
+    setSelectedSeriesKey('');
+    setDicomSummary(null);
+    setIsConverting3D(false);
 
     const mod = mainModuleRef.current;
     if (!mod?.handleDicomFiles) return;
 
     const statusEl = document.getElementById('status');
 
+    try {
+      if (typeof mod.resetWorkspaceForNewInput === 'function') {
+        await mod.resetWorkspaceForNewInput();
+      }
+    } catch (err) {
+      console.error('workspace reset failed:', err);
+    }
+
     if (normalizedFiles.length === 0) {
-      setDicomSummary(null);
-      setSelectedSeriesKey('');
       statusEl && (statusEl.textContent = '진행 중 없음');
       return;
     }

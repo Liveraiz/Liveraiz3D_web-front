@@ -2,6 +2,7 @@ import * as niivue from "@niivue/niivue";
 
 let topLeftView = null;
 let bottomView = null;
+let renderView = null;
 
 async function initTopLeftView() {
   const topLeftView = new niivue.Niivue({
@@ -31,6 +32,18 @@ async function initBottomView() {
   nvMulti.setRadiologicalConvention(true);
   await nvMulti.attachTo("canvasTop");
   return nvMulti;
+}
+
+async function initRenderView() {
+  const nvRender = new niivue.Niivue({
+    sliceType: niivue.SLICE_TYPE.RENDER,
+    backColor: [0, 0, 0, 1],
+    dragAndDropEnabled: false,
+    isOrientCube: true,
+  });
+
+  await nvRender.attachTo("canvasMulti");
+  return nvRender;
 }
 
 // 다른 niivue 의 volume 들을 사용하여 새로운 Niivue 를 만든다.
@@ -111,24 +124,43 @@ export async function setVolumeImageToCoronalAndSagittalView(niiImage) {
 }
 
 export async function showTopVolumeOnly(volumeView) {
-  const nvRender = new niivue.Niivue({
-    sliceType: niivue.SLICE_TYPE.RENDER,
-    backColor: [0, 0, 0, 1],
-    dragAndDropEnabled: false,
-    isOrientCube: true,
-  });
-
-  await nvRender.attachTo("canvasMulti");
+  if (!renderView) {
+    renderView = await initRenderView();
+  } else {
+    await renderView.loadVolumes([]);
+  }
 
   // Niivue 기본 방향 설정
-  nvRender.scene.renderAzimuth = 180;
+  renderView.scene.renderAzimuth = 180;
 
-  nvRender.addVolume(volumeView.volumes[1])
+  if (volumeView?.volumes?.[1]) {
+    await renderView.addVolume(volumeView.volumes[1]);
+  }
 
-  nvRender.updateGLVolume();
-  nvRender.drawScene();
+  renderView.updateGLVolume();
+  renderView.drawScene();
 
-  return nvRender;
+  return renderView;
+}
+
+export async function clearAllViewerVolumes() {
+  if (topLeftView) {
+    await topLeftView.loadVolumes([]);
+    topLeftView.updateGLVolume();
+    topLeftView.drawScene();
+  }
+
+  if (bottomView) {
+    await bottomView.loadVolumes([]);
+    bottomView.updateGLVolume();
+    bottomView.drawScene();
+  }
+
+  if (renderView) {
+    await renderView.loadVolumes([]);
+    renderView.updateGLVolume();
+    renderView.drawScene();
+  }
 }
 
 export function computeLabelVolumesDict(vol) {
@@ -150,7 +182,6 @@ export function computeLabelVolumesDict(vol) {
   }
   return out;
 }
-
 
 
 
