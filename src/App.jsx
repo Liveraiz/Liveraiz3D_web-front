@@ -17,6 +17,39 @@ import {
   setVolumeImageToCoronalAndSagittalView
 } from './features/viewer/niiViewer.js'
 
+const NIFTI_EXT_REGEX = /\.nii(\.gz)?$/i;
+const JSON_EXT_REGEX = /\.json$/i;
+
+const stripNiftiExtension = (name) => name.replace(NIFTI_EXT_REGEX, '');
+const stripJsonExtension = (name) => name.replace(JSON_EXT_REGEX, '');
+
+const sortByBaseNameLength = (a, b) => (
+  stripNiftiExtension(a.name).length - stripNiftiExtension(b.name).length
+  || a.name.localeCompare(b.name)
+);
+
+function pickPrimaryNiftiFile(resultFileList) {
+  const niftiFiles = resultFileList.filter((file) => NIFTI_EXT_REGEX.test(file.name));
+  if (niftiFiles.length === 0) return null;
+  if (niftiFiles.length === 1) return niftiFiles[0];
+
+  const jsonBaseNames = new Set(
+    resultFileList
+      .filter((file) => JSON_EXT_REGEX.test(file.name))
+      .map((file) => stripJsonExtension(file.name))
+  );
+
+  const matchedWithJson = niftiFiles.filter(
+    (file) => jsonBaseNames.has(stripNiftiExtension(file.name))
+  );
+
+  if (matchedWithJson.length > 0) {
+    return [...matchedWithJson].sort(sortByBaseNameLength)[0];
+  }
+
+  return [...niftiFiles].sort(sortByBaseNameLength)[0];
+}
+
 export default function App() {
   const mainModuleRef = useRef(null);
   const segmentationModels = [
@@ -82,12 +115,16 @@ export default function App() {
   };
 
   // 로드된 DICOM Series 중 사용자가 선택한 볼륨을 선택했을 때 호출 된다.
-  const handleSlectedSeriesChanged = async (seriesKey) => {
+  const handleSlectedSeriesChanged = async (seriesKey, options = {}) => {
+    const summarySource = options.summary ?? dicomSummary;
+    const filesSource = options.files ?? allDicomFiles;
     setSelectedSeriesKey(seriesKey);
 
-    const selectedSeries = dicomSummary?.series?.find((series) => series.seriesKey === seriesKey);
+    const selectedSeries = summarySource?.series?.find((series) => series.seriesKey === seriesKey);
+    if (!selectedSeries) return;
+
     const selectedPaths = new Set(selectedSeries?.filePaths || []);
-    const selectedDicomFiles = (allDicomFiles ?? []).filter((file) =>
+    const selectedDicomFiles = (filesSource ?? []).filter((file) =>
       selectedPaths.has(file.webkitRelativePath || file.name)
     );
 
@@ -97,8 +134,9 @@ export default function App() {
       const resultFileList = await dcm2niix.input(selectedDicomFiles).run();
       console.log('dcm2niix result', resultFileList);
 
-      const niftiFile = resultFileList.find((f) => /\.nii(\.gz)?$/i.test(f.name));
+      const niftiFile = pickPrimaryNiftiFile(resultFileList);
       if (!niftiFile) throw new Error('NIfTI 결과 파일이 없습니다.');
+      console.log('selected primary nifti:', niftiFile.name);
       setSelectedNiftiFile(niftiFile);
 
       // Create NiiImage from the converted nifti file.
@@ -137,9 +175,14 @@ export default function App() {
       statusEl && (statusEl.textContent = 'DICOM 파싱 중...');
       const summary = await mod.handleDicomFiles(normalizedFiles);
       setDicomSummary(summary || null);
-      setSelectedSeriesKey(summary?.series?.[0]?.seriesKey || '');
+      const firstSeriesKey = summary?.series?.[0]?.seriesKey || '';
+      setSelectedSeriesKey(firstSeriesKey);
       if (summary) {
         statusEl && (statusEl.textContent = `✅ 파싱 완료 (${summary.parsedCount}/${summary.candidateCount})`);
+        if (summary.series.length === 1 && firstSeriesKey) {
+          statusEl && (statusEl.textContent = '단일 Series 자동 선택 중...');
+          await handleSlectedSeriesChanged(firstSeriesKey, { summary, files: normalizedFiles });
+        }
       } else {
         statusEl && (statusEl.textContent = '진행 중 없음');
       }
