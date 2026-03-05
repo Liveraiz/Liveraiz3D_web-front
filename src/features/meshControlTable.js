@@ -113,7 +113,7 @@ export class MeshController {
 
     console.log("🎛️ dataset:", dataset);
     const mesh = getMeshByLabel(dataset.label);
-    const initialOpacity = mesh.material.opacity ?? 1;
+    const initialOpacity = mesh.material.opacity ?? 0.7;
     mesh.material.opacity = initialOpacity;
 
     const slider = document.createElement('input');

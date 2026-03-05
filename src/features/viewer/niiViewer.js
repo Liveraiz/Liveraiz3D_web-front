@@ -1,9 +1,5 @@
 import * as niivue from "@niivue/niivue";
 
-import {
-  labelColorMap1
-} from './colorMaps.js'
-
 let topLeftView = null;
 let bottomView = null;
 

@@ -1,6 +1,6 @@
 import { requestMeshesFromSegmentationNrrdUrl } from './features/viewer/renderNrrdMesh.js';
 import {
-  labelColorMap1
+  getColorMapByModel
 } from './features/viewer/colorMaps.js';
 
 import { parseDicomFiles } from './features/dicom/parseDicomFiles.js';
@@ -47,8 +47,8 @@ import {
 import {computeLabelVolumesDict} from './features/viewer/niiViewer.js';
 
 // ✅ API 엔드포인트 설정 (기본: localhost 개발 서버)
-// const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
-const DEFAULT_API_BASE = 'http://localhost:5051';
+const DEFAULT_API_BASE = 'https://evhd5jap7y.ap-northeast-1.awsapprunner.com';
+// const DEFAULT_API_BASE = 'http://localhost:5051';
 const API_BASE = (window.NIIVUE_API_BASE ?? DEFAULT_API_BASE).replace(/\/$/, "");
 const buildApiUrl = (path) => `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 window.NIIVUE_API_BASE = API_BASE;
@@ -94,7 +94,7 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   }
 
   console.log("🧩 완성된 Colormap:", { I, R: R.slice(0, 16), G: G.slice(0, 16), B: B.slice(0, 16), A: A.slice(0, 16) });
-  return { I, R, G, B, A };
+  return { R, G, B, A };
 }
 
 export async function renderMeshFromNrrdUrl(nrrdUrl, modelName) {
@@ -111,11 +111,14 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
 
     // ✅ 서버 색상 기반 Niivue colormap 생성
 
-  const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+  const colorMap = getColorMapByModel('Liver-PV-5section');
+
+  const segCmap = makeNiivueColormapFromLabelColorMap(colorMap);
+  console.log('segColorMap: ',segCmap);
   cmapper.addColormap("seg", segCmap);
 
   // ✅ 최대 라벨 값 계산
-  const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+  const maxLabelValue = Math.max(...Object.keys(colorMap).map(Number));
   const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
   const niiImage = await NVImage.loadFromUrl({
@@ -198,11 +201,12 @@ export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
     console.log("✅ NRRD URL:", nrrdUrl);
 
     // ✅ 서버 색상 기반 Niivue colormap 생성
-    const segCmap = makeNiivueColormapFromLabelColorMap(labelColorMap1);
+    const colorMap = getColorMapByModel(segmentationModel);
+    const segCmap = makeNiivueColormapFromLabelColorMap(colorMap);
     cmapper.addColormap("seg", segCmap);
 
     // ✅ 최대 라벨 값 계산
-    const maxLabelValue = Math.max(...Object.keys(labelColorMap1).map(Number));
+    const maxLabelValue = Math.max(...Object.keys(colorMap).map(Number));
     const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
     status.textContent = '세그멘테이션 볼륨 로드 중...';

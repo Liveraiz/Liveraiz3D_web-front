@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
-import { getLabelMapByModel, labelColorMap } from "../viewer/colorMaps.js";
+import { getLabelMapByModel, getColorMapByModel } from "../viewer/colorMaps.js";
 
 /**
  * Convert a segmentation NRRD blob to labeled Three.js meshes via backend.
@@ -76,14 +76,15 @@ export async function generateMeshFromNrrdBlob(nrrdBlob, modelName) {
                 loadedObject.traverse((child) => {
                     if (child instanceof THREE.Mesh) {
                         const currentLabel = item.label;
-                        const rgb = labelColorMap[currentLabel] || [255, 255, 255];
+                        const colorMap = getColorMapByModel(modelName);
+                        const rgb = colorMap[currentLabel] || [255, 255, 255];
                         const colorHex = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
 
                         // ✅ Material 적용
                         child.material = new THREE.MeshPhongMaterial({
                             color: colorHex,
                             transparent: true,
-                            opacity: 1.0,
+                            opacity: 0.7,
                             side: THREE.DoubleSide,
                         });
 

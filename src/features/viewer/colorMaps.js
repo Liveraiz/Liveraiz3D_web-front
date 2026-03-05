@@ -1,36 +1,3 @@
-// viewer/colorMaps.js
-
-// 1. 라벨별 색상 테마 모음
-export const themes = {
-    default: {
-            1: [238, 112, 70],
-            2: [238, 112, 70],
-            3: [218, 108, 110],
-            4: [138, 117, 231],
-            5: [211, 255, 51],
-            6: [255, 147, 77],
-            7: [185, 202, 99],
-            8: [79, 255, 174],
-            9: [193, 157, 255],
-            10: [139, 186, 255],
-            11: [234, 36, 36],
-            12: [95, 170, 127]
-    },
-    pastel: {
-        1: [255, 191, 128], 2: [255, 239, 128], 3: [191, 128, 255],
-        4: [128, 223, 255], 5: [128, 255, 191], 6: [128, 255, 255],
-        7: [255, 128, 191], 8: [224, 224, 224], 9: [255, 160, 160],
-        10: [160, 255, 160], 11: [192, 128, 128], 12: [128, 128, 192]
-    },
-    high_contrast: {
-        1: [255, 0, 0], 2: [0, 255, 0], 3: [0, 0, 255],
-        4: [255, 255, 0], 5: [0, 255, 255], 6: [255, 0, 255],
-        7: [255, 255, 255], 8: [0, 0, 0], 9: [255, 128, 0],
-        10: [128, 0, 255], 11: [128, 255, 0], 12: [0, 128, 255]
-    }
-};
-
-// 2. 라벨-이름 매핑
 export const labelNameMap_HCC = {
     1: "Liver", 
     2: "Rt.lobe", 
@@ -56,6 +23,17 @@ export const labelMap_LDLT_PV_5section = {
     7: "Spigelian"
 };
 
+const colorMap_PV_5section = {
+    0: [0, 0, 0, 0],
+    1: [139, 186, 255, 255],
+    2: [193, 157, 255, 255],
+    3: [138, 117, 231, 255],
+    4: [218, 108, 110, 255],
+    5: [185, 202, 99, 255],
+    6: [255, 147, 77, 255],
+    7: [79, 255, 174, 255] 
+}
+
 const labelMap_Kidney_CT_AP = {
     0:"background",
     1:"left_cortex", 
@@ -70,10 +48,30 @@ const labelMap_Kidney_CT_AP = {
     10:"renal_vein",   
 }
 
+const colorMap_Kidney_CT_AP = {
+    0: [0, 0, 0, 0],
+    1: [255, 123, 119, 255],
+    2: [176, 191, 73, 255],
+    3: [255, 255, 0, 255],
+    4: [255, 128, 48, 255],
+    5: [255, 123, 119, 255],
+    6: [176, 191, 73, 255],
+    7: [255, 255, 0, 255],
+    8: [255, 128, 48, 255],
+    9: [231, 22, 0, 255],
+    10: [40, 56, 255, 255]   
+}
+
 const labelMap_PS_Flap100 = {
     0: "background",
     1: "Breast_flap",
     2: "DIEP_flap"
+}
+
+const colorMap_PS_Flap100 = {
+    0: [0, 0, 0, 0],
+    1: [255, 105, 180, 255],
+    2: [255, 140, 0, 255]
 }
 
 const labelMap_PDAC_Pancreas = {
@@ -86,6 +84,16 @@ const labelMap_PDAC_Pancreas = {
     6: "spleen"
 }
 
+const colorMap_PDAC_Pancreas = {
+    0: [0, 0, 0, 0],
+    1: [249, 180, 111, 255],
+    2: [95, 170, 127, 255],
+    3: [234, 36, 36, 255],
+    4: [231, 22, 0, 255],
+    5: [40, 56, 255, 255],
+    6: [157, 108, 162, 255]
+}
+
 const labelMap_LDLT_Recip70 = {
     0: "background",
     1: "Recipient Cavity",
@@ -95,10 +103,25 @@ const labelMap_LDLT_Recip70 = {
     5: "Spleen"
 }
 
+const colorMap_LDLT_Recip70 = {
+    0: [0, 0, 0, 0],
+    1: [212, 212, 212, 255],
+    2: [231, 22, 0, 255],
+    3: [139, 186, 255, 255],
+    4: [255, 123, 119, 255],
+    5: [157, 108, 162, 255]
+}
+
 const labelMap_LDLT_MRCP3Dgrase100 = {
     0: "background",
     1: "BD data",
     2: "BD PV+"
+}
+
+const colorMap_LDLT_MRCP3Dgrase100 = {
+    0: [0,0,0, 0],
+    1: [95, 170, 127, 255],
+    2: [193, 157, 255, 255]
 }
 
 const labelMap_HCC_MRPP_104 = {
@@ -115,6 +138,20 @@ const labelMap_HCC_MRPP_104 = {
     10: "Cyst"
 }
 
+const colorMap_HCC_MRPP_104 = {
+    0: [0,0,0, 0],
+    1: [218, 108, 110, 255],
+    2: [138, 117, 231, 255],
+    3: [255, 147, 77, 255],
+    4: [185, 202, 99, 255],
+    5: [79, 255, 174, 255],
+    6: [139, 186, 255, 255],
+    7: [193, 157, 255, 255],
+    8: [234, 36, 36, 255],
+    9: [95, 170, 127, 255],
+    10:[255, 215, 0, 255]
+}
+
 const labelMap_HCC_MR20min_30 = {
     0: "background",
     1: "RAS",
@@ -129,6 +166,20 @@ const labelMap_HCC_MR20min_30 = {
     10: "Cyst"
 }
 
+const colorMap_HCC_MR20min_30 = {
+    0: [0,0,0, 0],
+    1: [218, 108, 110, 255],
+    2: [138, 117, 231, 255],
+    3: [255, 147, 77, 255],
+    4: [185, 202, 99, 255],
+    5: [79, 255, 174, 255],
+    6: [139, 186, 255, 255],
+    7: [193, 157, 255, 255],
+    8: [234, 36, 36, 255],
+    9: [95, 170, 127, 255],
+    10:[255, 215, 0, 255]
+}
+
 const labelMap_HCC_CT_PP30 = {
     0: "background",
     1: "RAS",
@@ -141,6 +192,18 @@ const labelMap_HCC_CT_PP30 = {
     8: "Cancer",
     9: "Cyst"
 }
+
+const colorMap_HCC_CT_PP30 = {
+    1:  [218, 108, 110, 255],
+    2:  [138, 117, 231, 255],
+    3:  [255, 147, 77, 255],
+    4:  [185, 202, 99, 255],
+    5:  [79, 255, 174, 255],
+    6:  [139, 186, 255, 255],
+    7:  [193, 157, 255, 255],
+    8:  [234, 36, 36, 255],
+    9: [255, 215, 0, 255]
+} 
 
 export const getLabelMapByModel = (modelName) => {
     console.log("getLabelMapByModel called with modelName:", modelName);
@@ -168,66 +231,28 @@ export const getLabelMapByModel = (modelName) => {
     }
 }
 
-// 3. 현재 사용 테마/색상맵 (초기값)
-export let labelColorMap = { ...themes.default };
-
-// 4. 테마 전환
-export function applyColorTheme(theme) {
-    labelColorMap = { ...themes[theme] };
-    return labelColorMap;
-}
-
-// 5. Niivue용 LUT 생성
-export function createNiivueLUT() {
-    const lut = new Uint8Array(256 * 4);
-    lut.fill(0);
-    Object.entries(labelColorMap).forEach(([label, rgb]) => {
-        const idx = parseInt(label, 10);
-        lut[idx * 4 + 0] = rgb[0];
-        lut[idx * 4 + 1] = rgb[1];
-        lut[idx * 4 + 2] = rgb[2];
-        lut[idx * 4 + 3] = rgb[3];
-    });
-    return lut;
-}
-
-// 6. Three.js 메쉬 색상 일괄 적용
-export function applyMeshColors(meshes) {
-    if (!meshes) return;
-    meshes.forEach(mesh => {
-        const label = mesh.userData?.label || mesh.label;
-        if (label && labelColorMap[label]) {
-            const [r, g, b] = labelColorMap[label];
-            mesh.material.color.setRGB(r / 255, g / 255, b / 255);
-            mesh.material.needsUpdate = true;
-        }
-    });
-}
-
-export const labelColorMap1 = {
-  1: [238, 112, 70, 255],   // Liver - 붉은 주황
-  2: [238, 112, 70, 255],   // Rt.lobe
-  3: [218, 108, 110, 255],  // RAS - 연붉은색
-  4: [138, 117, 231, 255],  // RPS - 보라
-  5: [211, 255, 51, 255],   // Lt.lobe - 노랑
-  6: [255, 50, 50, 255],   // ✅ LLS - 강한 주황 (기존보다 붉은 톤)
-  7: [40, 255, 120, 255],    // ✅ LMS - 진한 연두 → 채도 강화
-  8: [50, 230, 120, 255],   // ✅ Spigelian - 민트보다 진한 초록
-  9: [193, 157, 255, 255],  // PV - 연보라
-  10: [139, 186, 255, 255], // HV - 하늘색
-  11: [234, 36, 36, 255],   // Cancer - 강렬한 빨강
-  12: [50, 230, 120, 255],    // ✅ BD - 강한 녹색 (갈색 느낌 제거)
-  // 255: [255, 255, 255, 255]  // 편집된 부분 - 하얀색
-  255: [1.0, 1.0, 1.0, 0.0]   // 편집된 부분 - 투명
-};
-
-const colorMap_Liver_PV_5section = {
-    0: [0, 0, 0, 0],
-    1: [139, 186, 255, 255],
-    2: [193, 157, 255, 255],
-    3: [138, 117, 231, 255],
-    4: [218, 108, 110, 255],
-    5: [185, 202, 99, 255],
-    6: [255, 147, 77, 255],
-    7: [79, 255, 174, 255] 
+export const getColorMapByModel = (modelName) => {
+    console.log("getColorMapByModel called with modelName:", modelName);
+    switch (modelName) {
+        case 'HCC-CT-PP30':
+            return colorMap_HCC_CT_PP30;
+        case 'HCC-MR20min':
+            return colorMap_HCC_MR20min_30;
+        case 'HCC-MRPP':
+            return colorMap_HCC_MRPP_104;
+        case 'LDLT-MRCP3Dgrase':
+            return colorMap_LDLT_MRCP3Dgrase100;
+        case 'LDLT-Recip70':
+            return colorMap_LDLT_Recip70;
+        case 'PDAC-Pancreas':
+            return colorMap_PDAC_Pancreas;
+        case 'PS-Flap100':
+            return colorMap_PS_Flap100;
+        case 'Kidney-CT-AP':
+            return colorMap_Kidney_CT_AP;
+        case 'Liver-PV-5section':
+            return colorMap_PV_5section;
+        default:
+            return colorNameMap_HCC;
+    }
 }

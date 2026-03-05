@@ -39,6 +39,7 @@ export function buildVolumeTable(meshes, volume, scene) {
 
 export function createLeftLabelSection(mesh, labelText) {
   const color = mesh.material.color || new THREE.Color(0.5, 0.5, 0.5);
+  console.log('Mesh Color:', color);
 
   const container = document.createElement('div');
   Object.assign(container.style, {

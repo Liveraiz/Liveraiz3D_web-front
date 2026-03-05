@@ -223,17 +223,17 @@ header {
 
 #dicomSummaryContent .dicom-series-table th:nth-child(2),
 #dicomSummaryContent .dicom-series-table td:nth-child(2) {
-  width: 12%;
+  width: 50%;
 }
 
 #dicomSummaryContent .dicom-series-table th:nth-child(3),
 #dicomSummaryContent .dicom-series-table td:nth-child(3) {
-  width: 54%;
+  width: 10%;
 }
 
 #dicomSummaryContent .dicom-series-table th:nth-child(4),
 #dicomSummaryContent .dicom-series-table td:nth-child(4) {
-  width: 24%;
+  width: 15%;
 }
 
 #dicomSummaryContent .dicom-failure-list {
