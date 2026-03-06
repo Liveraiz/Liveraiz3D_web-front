@@ -114,7 +114,23 @@ export class MeshController {
     console.log("🎛️ dataset:", dataset);
     const mesh = getMeshByLabel(dataset.label);
     const initialOpacity = mesh.material.opacity ?? 0.7;
-    mesh.material.opacity = initialOpacity;
+    const applyTransparencyConfig = (targetMesh, opacityValue) => {
+      const isTransparent = opacityValue < 0.999;
+      targetMesh.material.opacity = opacityValue;
+      Object.assign(targetMesh.material, {
+        transparent: isTransparent,
+        depthWrite: !isTransparent,
+        depthTest: !isTransparent,
+        side: THREE.DoubleSide,
+        blending: THREE.NormalBlending
+      });
+      if ("forceSinglePass" in targetMesh.material) {
+        targetMesh.material.forceSinglePass = true;
+      }
+      targetMesh.renderOrder = isTransparent ? 2 : 1;
+      targetMesh.material.needsUpdate = true;
+    };
+    applyTransparencyConfig(mesh, initialOpacity);
 
     const slider = document.createElement('input');
     Object.assign(slider, {
@@ -139,26 +155,8 @@ export class MeshController {
       console.log("🎛️ Slider value:", e.target.value);
       const targetMesh = getMeshByLabel(dataset.label);
       const val = parseFloat(e.target.value);
-      targetMesh.material.opacity = val;
+      applyTransparencyConfig(targetMesh, val);
       valueText.innerText = val.toFixed(2);
-
-      if (val < 1.0) {
-        Object.assign(targetMesh.material, {
-          transparent: true,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-          blending: THREE.NormalBlending
-        });
-      } else {
-        Object.assign(targetMesh.material, {
-          transparent: false,
-          depthWrite: true,
-          side: THREE.DoubleSide,
-          blending: THREE.NoBlending
-        });
-      }
-
-      targetMesh.material.needsUpdate = true;
     };
 
     sliderGroup.appendChild(slider);
@@ -213,7 +211,12 @@ export class MeshController {
       // 불투명도 슬라이더
       const opacitySlider = row.querySelector('input[type="range"]');
       mesh.material.opacity = opacitySlider.value;
-      mesh.material.transparent = mesh.material.opacity < 1.0;
+      const isTransparent = mesh.material.opacity < 1.0;
+      mesh.material.transparent = isTransparent;
+      mesh.material.depthWrite = !isTransparent;
+      mesh.material.depthTest = !isTransparent;
+      mesh.material.side = THREE.DoubleSide;
+      mesh.renderOrder = isTransparent ? 2 : 1;
     });
   }
 

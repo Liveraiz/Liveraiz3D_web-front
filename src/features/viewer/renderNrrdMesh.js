@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { getLabelMapByModel, getColorMapByModel } from "../viewer/colorMaps.js";
 
 /**
@@ -80,19 +81,39 @@ export async function generateMeshFromNrrdBlob(nrrdBlob, modelName) {
                         const rgb = colorMap[currentLabel] || [255, 255, 255];
                         const colorHex = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
 
-                        // ✅ Material 적용
-                        child.material = new THREE.MeshPhongMaterial({
-                            color: colorHex,
-                            transparent: true,
-                            opacity: 0.7,
-                            side: THREE.DoubleSide,
-                        });
+                        
 
                         child.userData.label = currentLabel;
                         const labelMap = getLabelMapByModel(modelName);
                         child.userData.name = labelMap[currentLabel] || `Label ${currentLabel}`;
                         child.name = child.userData.name;
-                        child.geometry.computeVertexNormals();
+                        const mergedGeometry = mergeVertices(child.geometry, 1e-4);
+                        mergedGeometry.deleteAttribute('normal');
+                        mergedGeometry.computeVertexNormals();
+                        mergedGeometry.normalizeNormals();
+                        child.geometry.dispose();
+                        child.geometry = mergedGeometry;
+
+                        // ✅ Material 적용
+                        const initialOpacity = child.name === "HV" || child.name === "PV" ? 1.0 : 0.3;
+                        const isTransparent = initialOpacity < 0.999;
+                        child.material = new THREE.MeshPhysicalMaterial({
+                            color: colorHex,
+                            transparent: isTransparent,
+                            opacity: initialOpacity,
+                            side: THREE.DoubleSide,
+                            roughness: 0.55,
+                            metalness: 0.0,
+                            clearcoat: 0.2,
+                            clearcoatRoughness: 0.2,
+                            flatShading: false,
+                            depthWrite: !isTransparent,
+                            depthTest: !isTransparent,
+                            forceSinglePass: true,
+                            blending: THREE.NormalBlending,
+                        });
+                        child.renderOrder = isTransparent ? 2 : 1;
+                        
                         console.log("Labeled Mesh: ", child);
 
                         meshes.push(child);

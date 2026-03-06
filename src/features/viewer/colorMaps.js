@@ -24,7 +24,7 @@ export const labelMap_LDLT_PV_5section = {
 };
 
 const colorMap_PV_5section = {
-    0: [0, 0, 0, 0],
+    0: [0,0, 0, 0],
     1: [139, 186, 255, 255],
     2: [193, 157, 255, 255],
     3: [138, 117, 231, 255],

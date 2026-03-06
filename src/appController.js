@@ -42,7 +42,6 @@ import {
 
 import {
   NVImage,
-  cmapper
 } from "@niivue/niivue";
 
 import {computeLabelVolumesDict} from './features/viewer/niiViewer.js';
@@ -67,6 +66,7 @@ let threeMeshes = [];
 let meshMap = {};
 let selectedMesh = null;
 let meshController = null;
+let isMeshAnimationRunning = false;
 
 const canvas = document.getElementById('threeCanvas');
 let nvMulti = null;     // 멀티플레인 뷰어
@@ -77,22 +77,23 @@ let {scene, renderer, camera, controls} = initThreeJS(canvas);
 
 function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   const I = [], R = [], G = [], B = [], A = [];
+  const sortedEntries = Object.entries(labelColorMap)
+    .map(([label, rgba]) => [Number(label), rgba])
+    .filter(([label, rgba]) => Number.isFinite(label) && Array.isArray(rgba) && rgba.length >= 3)
+    .sort((a, b) => a[0] - b[0]);
 
-  for (let i = 0; i <= 255; i++) {
-    I.push(i);
-    if (labelColorMap[i]) {
-      const [r, g, b, a] = labelColorMap[i];
-      R.push(r);
-      G.push(g);
-      B.push(b);
-      A.push(a);
-    } else {
-      R.push(0);
-      G.push(0);
-      B.push(0);
-      A.push(0);
-    }
+  if (!sortedEntries.some(([label]) => label === 0)) {
+    sortedEntries.unshift([0, [0, 0, 0, 0]]);
   }
+
+  sortedEntries.forEach(([label, rgba]) => {
+    const [r, g, b, a] = rgba;
+    I.push(label);
+    R.push(r ?? 0);
+    G.push(g ?? 0);
+    B.push(b ?? 0);
+    A.push(a ?? (label === 0 ? 0 : 255));
+  });
 
   console.log("🧩 완성된 Colormap:", { I, R: R.slice(0, 16), G: G.slice(0, 16), B: B.slice(0, 16), A: A.slice(0, 16) });
   return {I, R, G, B, A };
@@ -104,7 +105,10 @@ export async function renderMeshFromNrrdUrl(nrrdUrl, modelName) {
   initMeshMap(meshes);
   addMeshsToScene(meshes);
   fitCameraToMeshes(meshes, camera, controls, renderer, scene);
-  animate(controls, renderer, scene, camera);
+  if (!isMeshAnimationRunning) {
+    animate(controls, renderer, scene, camera);
+    isMeshAnimationRunning = true;
+  }
   return meshes;
 }
 
@@ -114,14 +118,7 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
     // ✅ 서버 색상 기반 Niivue colormap 생성
 
   const colorMap = getColorMapByModel('Liver-PV-5section');
-
   const segCmap = makeNiivueColormapFromLabelColorMap(colorMap);
-  console.log('segColorMap: ',segCmap);
-  cmapper.addColormap("seg", segCmap);
-
-  // ✅ 최대 라벨 값 계산
-  const maxLabelValue = Math.max(...Object.keys(colorMap).map(Number));
-  const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
   const niiImage = await NVImage.loadFromUrl({
     url: niiUrl, 
@@ -134,18 +131,12 @@ export async function renderVolumeMeshAndSlices(niiUrl, nrrdUrl, scene, camera, 
   const nrrdImage = await NVImage.loadFromUrl({
     url: nrrdUrl,
     name: "Seg.nrrd",
-    colormap: "seg",       // ✅ 커스텀 컬러맵
-    indexedColors: true,
-    cal_min: labelLUT.min,
-    cal_max: labelLUT.max,
+    colormap: "gray",
     opacity: 0.8,
     alphaThreshold: 0.0,
     visible: true,
   });
-
-  nrrdImage.lut = labelLUT.lut;
-  nrrdImage.cal_min = labelLUT.min;
-  nrrdImage.cal_max = labelLUT.max;
+  nrrdImage.setColormapLabel(segCmap);
 
   const result = computeLabelVolumesDict(nrrdImage);
   console.log("Volumes: ", result);
@@ -205,27 +196,17 @@ export async function handleConvertNiftiTo3D(niftiFile, segmentationModel) {
     // ✅ 서버 색상 기반 Niivue colormap 생성
     const colorMap = getColorMapByModel(segmentationModel);
     const segCmap = makeNiivueColormapFromLabelColorMap(colorMap);
-    cmapper.addColormap("seg", segCmap);
-
-    // ✅ 최대 라벨 값 계산
-    const maxLabelValue = Math.max(...Object.keys(colorMap).map(Number));
-    const labelLUT = cmapper.makeLabelLut(segCmap, maxLabelValue);
 
     status.textContent = '세그멘테이션 볼륨 로드 중...';
     const nrrdImage = await NVImage.loadFromUrl({
       url: nrrdUrl,
       name: "Seg.nrrd",
-      colormap: "seg",       // ✅ 커스텀 컬러맵
-      indexedColors: true,
-      cal_min: labelLUT.min,
-      cal_max: labelLUT.max,
+      colormap: "gray",
       opacity: 0.8,
       alphaThreshold: 0.0,
       visible: true,
     });
-    nrrdImage.lut = labelLUT.lut;
-    nrrdImage.cal_min = labelLUT.min;
-    nrrdImage.cal_max = labelLUT.max;
+    nrrdImage.setColormapLabel(segCmap);
 
     setSegmentationMaskToAxialView(nrrdImage);
     setSegmentationMaskToCoronalAndSagittalView(nrrdImage);

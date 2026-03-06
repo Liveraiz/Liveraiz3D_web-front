@@ -210,7 +210,7 @@ export default function App() {
 
       bottomView.broadcastTo([topLeft], { "2d": true, "3d": true });
       topLeft.broadcastTo([bottomView], { "2d": true, "3d": true });
-      statusEl && (statusEl.textContent = '✅ Series 로드 완료');
+      statusEl && (statusEl.textContent = 'Segmenting...');
     } catch (err) {
       console.error('dcm2niix worker load/convert failed:', err);
       statusEl && (statusEl.textContent = `❌ Series 로드 실패: ${err.message}`);
@@ -347,7 +347,7 @@ export default function App() {
             onClick={handle3DConvert}
             disabled={isConverting3D || isDicomParsing || allDicomFiles.length === 0}
           >
-            {isConverting3D ? '변환 중...' : 'Auto-Segment'}
+            {isConverting3D ? 'Processing...' : 'Auto-Segment'}
           </IconButton>
           <div className="server-health-indicator" role="status" aria-live="polite">
             <span

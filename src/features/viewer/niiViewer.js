@@ -56,6 +56,7 @@ export async function createTopLeftFromAnotherView(niiImage, nrrdImage) {
 
   topLeftView.addVolume(niiImage);
   topLeftView.addVolume(nrrdImage);
+  topLeftView.setInterpolation(true);
   
   return topLeftView;
 }
@@ -69,6 +70,7 @@ export async function addVolumesToBottomView(niiImage, nrrdImage) {
 
   await bottomView.addVolume(niiImage);
   await bottomView.addVolume(nrrdImage);
+  bottomView.setInterpolation(true);
 
   bottomView.updateGLVolume();
   bottomView.drawScene();
@@ -86,6 +88,7 @@ export async function setVolumeImageToAxialView(niiImage) {
     await topLeftView.loadVolumes([]); // 기존 볼륨 제거
   }
   topLeftView.addVolume(niiImage);
+  topLeftView.setInterpolation(false);
   return topLeftView;
 }
 
@@ -94,6 +97,7 @@ export async function setSegmentationMaskToAxialView(nrrdImage) {
     topLeftView = await initTopLeftView();
   }
   topLeftView.addVolume(nrrdImage);
+  topLeftView.setInterpolation(true);
   return topLeftView;
 }
 
@@ -110,6 +114,7 @@ export async function setSegmentationMaskToCoronalAndSagittalView(nrrdImage) {
     bottomView = await initBottomView();
   }
   bottomView.addVolume(nrrdImage);
+  bottomView.setInterpolation(true);
   return bottomView;
 }
 
@@ -120,6 +125,7 @@ export async function setVolumeImageToCoronalAndSagittalView(niiImage) {
     bottomView.loadVolumes([]); // 기존 볼륨 제거
   }
   await bottomView.addVolume(niiImage);
+  bottomView.setInterpolation(false);
   return bottomView;
 }
 
@@ -136,6 +142,7 @@ export async function showTopVolumeOnly(volumeView) {
   if (volumeView?.volumes?.[1]) {
     await renderView.addVolume(volumeView.volumes[1]);
   }
+  renderView.setInterpolation(true);
 
   renderView.updateGLVolume();
   renderView.drawScene();
@@ -182,6 +189,5 @@ export function computeLabelVolumesDict(vol) {
   }
   return out;
 }
-
 
 
