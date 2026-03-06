@@ -19,6 +19,11 @@ import {
 
 const NIFTI_EXT_REGEX = /\.nii(\.gz)?$/i;
 const JSON_EXT_REGEX = /\.json$/i;
+const HEALTH_CHECK_URL = 'https://smc-ssiso-ai.ngrok.app/health';
+// const HEALTH_CHECK_URL = 'http://localhost:8000/health';
+
+const HEALTH_CHECK_INTERVAL_MS = 1000;
+const HEALTH_CHECK_TIMEOUT_MS = 500;
 
 const stripNiftiExtension = (name) => name.replace(NIFTI_EXT_REGEX, '');
 const stripJsonExtension = (name) => name.replace(JSON_EXT_REGEX, '');
@@ -52,6 +57,7 @@ function pickPrimaryNiftiFile(resultFileList) {
 
 export default function App() {
   const mainModuleRef = useRef(null);
+  const healthCheckInFlightRef = useRef(false);
   const segmentationModels = [
     'HCC-CT-PP30',
     'HCC-MR20min',
@@ -72,6 +78,7 @@ export default function App() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('');
   const [selectedNiftiFile, setSelectedNiftiFile] = useState(null);
   const [selectedSegmentationModel, setSelectedSegmentationModel] = useState(segmentationModels[0]);
+  const [inferenceServerStatus, setInferenceServerStatus] = useState('busy');
 
 
   useEffect(() => {
@@ -79,6 +86,50 @@ export default function App() {
     import('./appController.js').then((mod) => {
       mainModuleRef.current = mod;
     });
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    let intervalId = null;
+
+    const checkHealth = async () => {
+      if (healthCheckInFlightRef.current) return;
+      healthCheckInFlightRef.current = true;
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+      const startedAt = performance.now();
+
+      try {
+        const response = await fetch(HEALTH_CHECK_URL, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+        const elapsedMs = performance.now() - startedAt;
+        const isReady = response.ok && elapsedMs <= HEALTH_CHECK_TIMEOUT_MS;
+        if (isMounted) {
+          setInferenceServerStatus(isReady ? 'ready' : 'busy');
+        }
+      } catch (err) {
+        if (isMounted) {
+          setInferenceServerStatus('busy');
+        }
+      } finally {
+        clearTimeout(timeoutId);
+        healthCheckInFlightRef.current = false;
+      }
+    };
+
+    checkHealth();
+    intervalId = window.setInterval(checkHealth, HEALTH_CHECK_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, []);
 
   const callMainHandler = (fnName) => () => {
@@ -298,6 +349,15 @@ export default function App() {
           >
             {isConverting3D ? '변환 중...' : 'Auto-Segment'}
           </IconButton>
+          <div className="server-health-indicator" role="status" aria-live="polite">
+            <span
+              className={`server-health-dot ${inferenceServerStatus === 'ready' ? 'is-ready' : 'is-busy'}`}
+              aria-hidden="true"
+            />
+            <span className="server-health-text">
+              {inferenceServerStatus === 'ready' ? 'Standby' : 'Busy'}
+            </span>
+          </div>
           <div className={`status-indicator ${isConverting3D ? 'is-busy' : ''}`}>
             <span id="status" style={{ fontSize: 14, color: '#ccc' }}>
               진행 중 없음

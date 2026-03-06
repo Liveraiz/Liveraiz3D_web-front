@@ -95,7 +95,7 @@ function makeNiivueColormapFromLabelColorMap(labelColorMap) {
   }
 
   console.log("🧩 완성된 Colormap:", { I, R: R.slice(0, 16), G: G.slice(0, 16), B: B.slice(0, 16), A: A.slice(0, 16) });
-  return { R, G, B, A };
+  return {I, R, G, B, A };
 }
 
 export async function renderMeshFromNrrdUrl(nrrdUrl, modelName) {
