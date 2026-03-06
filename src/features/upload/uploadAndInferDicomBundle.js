@@ -13,7 +13,7 @@ export async function uploadAndInferDicomBundle(fileList, endpoint, onStatus) {
     if (!files.length) throw new Error("DICOM(.dcm) 파일이 없습니다.");
 
     const folderName = files[0].webkitRelativePath?.split('/')?.[0] || `upload-${Date.now()}`;
-    onStatus?.(`📤 '${folderName}' 업로드 중...`);
+    onStatus?.(`📤 'Segmentation is processing...'`);
 
     const formData = new FormData();
     files.forEach(f => formData.append('dicomFiles', f));
@@ -83,7 +83,7 @@ export async function uploadAndInferNiftiBundle(niftiFile, segmentationModel, en
         throw new Error("niftiFile은 File 객체여야 합니다.");
     }
     
-    onStatus?.(`📤 '${niftiFile.name}' 업로드 중...`);
+    onStatus?.(`📤 'Segmentation is processing...'`);
 
     const formData = new FormData();
     formData.append('niftiFile', niftiFile, niftiFile.name);

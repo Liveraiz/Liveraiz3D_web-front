@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { TrackballControls } from 'three/examples/jsm/controls/TrackballControls.js';
 
 export function initThreeJS(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
   const ro = new ResizeObserver(() => adjustMeshCanvasSize(canvas, renderer, camera));
   ro.observe(canvas);
 
@@ -181,4 +181,3 @@ export function showVolumeBoundingBox(volume, scene, lassoEditor) {
   const helper = new THREE.Box3Helper(box, 0x00ffcc);
   scene.add(helper);
 }
-

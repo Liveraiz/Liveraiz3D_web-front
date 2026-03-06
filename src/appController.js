@@ -389,16 +389,20 @@ export function handleEditorToggle() {
     scissorIcon.style.display = 'block';
 
     // ✅ selectedMesh가 없으면 첫 번째 메쉬 자동 선택
-    if (!selectedMesh && threeMeshes.length > 0) {
-      selectMesh(threeMeshes[0]); // 내부적으로 highlight 처리
-    } else if (selectedMesh) {
-      highlightSelectedMesh(selectedMesh);
+    const currentSelectedMesh = meshController?.selectedMesh ?? lassoEditor.selectedMesh ?? selectedMesh;
+    if (!currentSelectedMesh && threeMeshes.length > 0) {
+      const firstMesh = threeMeshes[0];
+      meshController?.selectMesh(firstMesh); // 내부적으로 highlight 처리
+      selectedMesh = firstMesh;
+    } else if (currentSelectedMesh) {
+      meshController?.highlightSelectedMesh(currentSelectedMesh);
+      selectedMesh = currentSelectedMesh;
     }
   } else {
     editorBtn.textContent = '✂️ 편집 모드';
     editorBtn.classList.remove('edit-active');
     scissorIcon.style.display = 'none';
-    meshController.clearAllHighlights();
+    meshController?.clearAllHighlights?.();
   }
 }
 

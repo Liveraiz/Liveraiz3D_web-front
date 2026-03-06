@@ -238,7 +238,8 @@ export class MeshController {
   }
 
   selectMesh(mesh) {
-    lassoEditor.setSelectedMesh(mesh);
+    if (!mesh) return;
+    this.lassoEditor?.setSelectedMesh(mesh);
     this.selectedMesh = mesh;
 
     // create bounding box helper for mesh
@@ -252,7 +253,7 @@ export class MeshController {
     this.clearAllHighlights();
 
     // ✅ 편집 모드라면 즉시 강조
-    if (lassoEditor.editMode) {
+    if (this.lassoEditor?.editMode) {
       this.highlightSelectedMesh(mesh);
     }
   }

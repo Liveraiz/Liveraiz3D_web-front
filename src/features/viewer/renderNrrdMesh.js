@@ -87,8 +87,14 @@ export async function generateMeshFromNrrdBlob(nrrdBlob, modelName) {
                         const labelMap = getLabelMapByModel(modelName);
                         child.userData.name = labelMap[currentLabel] || `Label ${currentLabel}`;
                         child.name = child.userData.name;
-                        const mergedGeometry = mergeVertices(child.geometry, 1e-4);
-                        mergedGeometry.deleteAttribute('normal');
+                        // Build smooth normals from welded positions so per-pixel lighting
+                        // has continuous shading across triangulated OBJ surfaces.
+                        const smoothSource = child.geometry.clone();
+                        smoothSource.deleteAttribute("normal");
+                        if (smoothSource.getAttribute("uv")) {
+                            smoothSource.deleteAttribute("uv");
+                        }
+                        const mergedGeometry = mergeVertices(smoothSource, 1e-4);
                         mergedGeometry.computeVertexNormals();
                         mergedGeometry.normalizeNormals();
                         child.geometry.dispose();

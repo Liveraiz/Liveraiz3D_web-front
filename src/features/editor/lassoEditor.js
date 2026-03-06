@@ -1332,9 +1332,9 @@ export class LassoEditor {
                 };
 
             case 'niivueRender':
-                // Niivue Render 뷰어용 변환
-                if (!this.nvRender || !this.renderOverlay) return null;
-                return this.projectToNiivueRender(pos);
+            //     // Niivue Render 뷰어용 변환
+            //     if (!this.nvRender || !this.renderOverlay) return null;
+            //     return this.projectToNiivueRender(pos);
 
             case 'niivueMulti':
                 // Niivue 멀티플레인 뷰어용 변환

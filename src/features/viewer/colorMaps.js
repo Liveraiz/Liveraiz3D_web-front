@@ -13,6 +13,36 @@ export const labelNameMap_HCC = {
     12: "BD"
 };
 
+// const labelMap_HCC_MR20min_30 = {
+//     0: "background",
+//     1: "RAS",
+//     2: "RPS",
+//     3: "LLS",
+//     4: "LMS",
+//     5: "Spigelian",
+//     6: "HV",
+//     7: "PV",
+//     8: "Cancer",
+//     9: "BD",
+//     10: "Cyst"
+// }
+
+const colorMap_HCC = {
+    0: [0,0,0, 0],
+    1: [255, 0, 0, 255], // Liver
+    2: [50, 50, 200, 255],
+    3: [218, 108, 110, 255],
+    4: [138, 117, 231, 255],
+    5: [50, 200, 50, 255],
+    6: [255, 147, 77, 255],    // LLS
+    7: [185, 202, 99, 255],    // LMS
+    8: [79, 255, 174, 255],    // Spigelian
+    9: [193, 157, 255, 255],  // PV
+    10: [139, 186, 255, 255],   // HV
+    11: [234, 36, 36, 255],     // Cancer
+    12: [95, 170, 127, 255],    // BD
+}
+
 export const labelMap_LDLT_PV_5section = {
     1: "HV",
     2: "PV",
@@ -253,6 +283,6 @@ export const getColorMapByModel = (modelName) => {
         case 'Liver-PV-5section':
             return colorMap_PV_5section;
         default:
-            return colorNameMap_HCC;
+            return colorMap_HCC;
     }
 }

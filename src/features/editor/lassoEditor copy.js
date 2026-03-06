@@ -2026,18 +2026,6 @@ export class LassoEditor {
 
         console.log(`✅ ${viewerName} 테스트 완료: ${changedVoxels}개 복셀을 투명(0)으로 변경했습니다.`);
 
-        // LUT에서 0번 인덱스 색상 확인 (투명)
-        if (volume.lut && volume.lut.length > 0) {
-            const lutIndex = 0 * 4;
-            console.log(`🎨 ${viewerName} LUT[0] 색상 확인 (투명):`);
-            console.log(`  R: ${volume.lut[lutIndex]}`);
-            console.log(`  G: ${volume.lut[lutIndex + 1]}`);
-            console.log(`  B: ${volume.lut[lutIndex + 2]}`);
-            console.log(`  A: ${volume.lut[lutIndex + 3]}`);
-        } else {
-            console.warn(`⚠️ ${viewerName} LUT가 없습니다.`);
-        }
-
         // 강제로 indexedColors 활성화 및 속성 재설정
         console.log(`🔧 ${viewerName} 볼륨 속성 강제 재설정...`);
         volume.indexedColors = true;
