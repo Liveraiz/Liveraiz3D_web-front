@@ -210,7 +210,7 @@ export default function App() {
 
       bottomView.broadcastTo([topLeft], { "2d": true, "3d": true });
       topLeft.broadcastTo([bottomView], { "2d": true, "3d": true });
-      statusEl && (statusEl.textContent = 'Segmenting...');
+      statusEl && (statusEl.textContent = 'nii has been loaded.');
     } catch (err) {
       console.error('dcm2niix worker load/convert failed:', err);
       statusEl && (statusEl.textContent = `❌ Series 로드 실패: ${err.message}`);

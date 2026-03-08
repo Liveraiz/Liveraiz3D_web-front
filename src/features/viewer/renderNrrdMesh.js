@@ -81,8 +81,6 @@ export async function generateMeshFromNrrdBlob(nrrdBlob, modelName) {
                         const rgb = colorMap[currentLabel] || [255, 255, 255];
                         const colorHex = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
 
-                        
-
                         child.userData.label = currentLabel;
                         const labelMap = getLabelMapByModel(modelName);
                         child.userData.name = labelMap[currentLabel] || `Label ${currentLabel}`;

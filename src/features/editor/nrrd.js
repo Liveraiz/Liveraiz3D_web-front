@@ -154,16 +154,20 @@ export function serialize (nrrdOrg) {
     // Make sure we have the correct buffer in bufferData.
     if (nrrd.data) {
         switch(nrrd.encoding) {
-        case 'raw':
-            if (nrrd.type == nativeType && nrrd.endian == systemEndianness) {
+        case 'raw': {
+            // 8-bit types in NRRD intentionally have no endian field.
+            // Treat undefined endian as native for zero-copy/raw serialization.
+            const sameOrNoEndian = (nrrd.endian === systemEndianness || nrrd.endian === undefined);
+            if (nrrd.type == nativeType && sameOrNoEndian) {
                 bufferData = nrrd.data.buffer.slice(nrrd.data.byteOffset, nrrd.data.byteOffset+nrrd.data.byteLength);
-            } else if (nrrd.endian == systemEndianness) {
+            } else if (sameOrNoEndian) {
                 bufferData = castTypedArray(nrrd.data, nrrd.type);
                 bufferData = bufferData.buffer.slice(bufferData.byteOffset, bufferData.byteOffset+bufferData.byteLength);
             } else {
                 bufferData = serializeToBuffer(nrrd.data, nrrd.type, nrrd.endian);
             }
             break;
+        }
         case 'ascii':
             if (nrrd.type == nativeType) {
                 bufferData = serializeToTextBuffer(nrrd.data);
